@@ -1,184 +1,244 @@
 <div align="center">
 
-# GeoLightning-Framework
+<img src="images/logo_all.png" alt="GeoLightning Logo" width="400"/>
 
 [![python](https://img.shields.io/badge/Python_3.8+|3.9|3.10-blue?logo=python)](https://www.python.org/)
 [![pytorch](https://img.shields.io/badge/PyTorch_2.0+-ee4c2c?logo=pytorch)](https://pytorch.org/)
 [![lightning](https://img.shields.io/badge/Lightning_2.0+-792ee5?logo=pytorchlightning)](https://lightning.ai/)
 [![hydra](https://img.shields.io/badge/Config-Hydra_1.3-89b8cd)](https://hydra.cc/)
 
+**多任务多模态遥感深度学习框架**
+
 </div>
 
-### 🌐 框架元信息
+## 🌐 框架概述
+
+GeoLightning 是一个基于 PyTorch Lightning 的地理空间深度学习框架，专注于遥感图像处理与分析，融合多种数据模态与任务类型，实现高效可扩展的地球观测数据智能处理。
+
 ```yaml
 meta:
-  version: "2.0" 
+  version: "2.0"
   framework_type: "multi-task multi-modal"
 ```
-- **版本控制**：采用语义化版本管理核心架构变更
-- **框架定位**：面向多任务协同与多模态融合的遥感智能处理平台
 
----
+## 📂 项目结构
 
-### 🧩 四维架构体系
-```yaml
-dimensions:
-  - task_type       # 任务类型维度
-  - data_modality   # 数据模态维度
-  - processing_stage # 处理阶段维度 
-  - component_category # 组件类别维度
 ```
-- **任务类型**：支持6大类20+子任务
-- **数据模态**：覆盖光学/SAR/激光雷达/高光谱等5种输入
-- **处理阶段**：划分预处理-核心处理-后处理全链路
-- **组件类别**：模块化封装200+可插拔组件
-
----
-
-### 🎯 任务类型体系
-```yaml
-task_types:
-  - name: "PixelLevel"   # 像素级处理
-    subtypes: ["语义分割","实例分割","光谱解混"]
-  
-  - name: "ObjectLevel"  # 对象级处理
-    subtypes: ["目标检测","变化检测","异常检测"]
-  
-  - name: "Enhancement"  # 影像增强
-    subtypes: ["超分辨率","去云","辐射校正"]
-  
-  - name: "Geometric"    # 几何处理
-    subtypes: ["影像配准","立体三维重建"]
-  
-  - name: "Temporal"     # 时序分析
-    subtypes: ["作物监测","灾害评估"]
-  
-  - name: "Multimodal"   # 多模态融合
-    subtypes: ["光学-SAR融合","空-地协同分析"]
+GeoLightning/
+├── configs/               # 配置文件目录
+│   ├── configs_demo/      # 示例配置
+│   ├── TreeHeightUnet_config/ # 树高估计模型配置
+│   └── Unet_config/       # U-Net模型配置
+├── src/                   # 核心源代码
+│   ├── callbacks/         # 自定义回调
+│   ├── data/              # 数据处理模块
+│   ├── losses/            # 损失函数
+│   ├── models/            # 模型实现
+│   │   ├── backbones/     # 特征提取骨干网络
+│   │   │   └── bricks/    # 网络基础构建模块
+│   │   ├── ChangeTask/    # 变化检测任务
+│   │   ├── ClassficationTask/ # 分类任务
+│   │   ├── DetectionTask/ # 目标检测任务
+│   │   ├── MheadUnet/     # 多头U-Net
+│   │   ├── RegresstionTask/ # 回归任务
+│   │   ├── SegmentationTask/ # 分割任务
+│   │   └── SelfSupervisedTask/ # 自监督任务
+│   ├── preprocess/        # 数据预处理
+│   ├── utils/             # 工具函数
+│   ├── eval.py            # 评估入口
+│   ├── infra.py           # 基础设施
+│   └── train.py           # 训练入口
+├── tools/                 # 辅助工具脚本
+├── tests/                 # 测试套件
+└── images/                # 示例资源
 ```
 
----
+## 🧩 多维架构设计
 
-### 🧠 核心组件库
+GeoLightning 采用多维度架构设计，支持灵活组合与扩展：
+
+- **任务类型维度**：支持像素级、对象级和场景级处理
+- **数据模态维度**：处理光学、SAR、LiDAR等多源数据
+- **处理阶段维度**：贯穿预处理、核心处理到后处理全链路
+- **组件类别维度**：模块化封装可插拔组件
+
+## 🚀 核心功能
+
+### 骨干网络
+
+提供多种先进的特征提取网络：
+
 ```yaml
-component_registry:
-  input_adapters:    # 输入适配层
-    modalities: ["光学","SAR","LiDAR"]
-    architectures: ["PatchEmbedding","PointNet"]
-  
-  backbone_units:    # 特征提取骨干
-    spatial_types: ["SwinTR","ConvNeXt"]
-    spectral_types: ["3D-CNN","图卷积网络"]
-  
-  neck_structures:   # 特征融合层
-    - "FPN"          # 特征金字塔
-    - "ASPP"         # 空洞空间金字塔池化
-  
-  task_heads:        # 任务专用头
-    segmentation: ["DeepLabv3+","Mask2Former"]
-    detection: ["DETR","YOLOv8"]
-  
-  output_adapters:   # 输出适配器
-    - "GeoTIFFWriter" # 地理编码输出
-    - "3DTiles生成器"
+backbone_networks:
+  CNN_based:
+    - "ResNet(50/101)"    # 残差网络
+    - "ConvNeXt"          # 新一代卷积网络
+    - "MobileNet"         # 轻量级网络
+
+  Transformer_based:
+    - "ViT"               # 视觉transformer
+    - "Swin"              # 分层窗口注意力
+    - "BEiT"              # 双向编码
+
+  Specialized:
+    - "UNet"              # U形编解码
+    - "HRNet"             # 高分辨率网络
+    - "BiSeNet"           # 双向分割网络
 ```
 
----
+### 任务支持
 
-### 🔄 处理流水线
+集成多种遥感任务处理能力：
+
 ```yaml
-processing_pipeline:
-  pre_processing:    # 预处理阶段
-    - "几何精校正"    # 亚像素级配准
-    - "大气校正"      # 6S模型/FLASSH算法
-  
-  core_processing:   # 核心处理
-    - "多尺度特征提取" # 空间-光谱联合特征
-    - "时序对齐"      # 动态时间规整(DTW)
-  
-  post_processing:   # 后处理优化
-    - "切片无缝拼接"  # 自适应重叠融合
-    - "CRF优化"      # 条件随机场精修
+task_support:
+  Segmentation:           # 分割任务
+    - "语义分割"           # 像素级分类
+    - "实例分割"           # 对象区分
+
+  Detection:              # 检测任务
+    - "目标检测"           # 目标定位与分类
+    - "变化检测"           # 多时相差异识别
+
+  Regression:             # 回归任务
+    - "树高估计"           # 植被高度推断
+    - "生物量计算"         # 生物质量预测
+
+  Classification:         # 分类任务
+    - "地物分类"           # 土地覆盖分类
+    - "场景识别"           # 场景类型判断
 ```
 
----
+### 数据处理能力
 
-### ⚡ 智能回调系统
+专为地理空间数据设计的处理管线：
+
 ```yaml
-callback_system:
-  generic_callbacks:    # 通用回调
-    spatial_handling:
-      - "分块推理调度器"  # 显存优化分块策略
-      - "地理一致性校验"  # 坐标系/投影验证
-    
-    memory_management:
-      - "混合精度训练"    # FP16+梯度缩放
-      - "显存碎片整理"    # 动态内存池管理
-    
-  task_specific_callbacks: # 任务专用
-    segmentation:
-      - "类别平衡采样器"  # 动态调整样本权重
-      - "边缘优化器"      # 引导滤波边缘增强
-    
-    temporal:
-      - "变化轨迹追踪"    # 时序变化热力图生成
+data_processing:
+  spatial:
+    - "地理编码保持"       # 保留地理参考
+    - "坐标转换"          # 不同坐标系处理
+    - "多分辨率融合"       # 尺度适配
+
+  tiling:
+    - "智能分块"          # 自适应分块策略
+    - "无缝拼接"          # 边缘融合
+    - "大图推理"          # 超大影像处理
+
+  augmentation:
+    - "地理特定增强"       # 针对遥感特性
+    - "多尺度训练"        # 尺度不变性增强
+    - "谱间变换"          # 波段操作
 ```
 
----
+## ⚡ 高级特性
 
-### 🤝 多模态融合架构
-```yaml
-fusion_architecture:
-  fusion_levels:    # 融合层级
-    - "像素级融合"    # 原始数据层融合
-    - "特征级融合"    # 中间表示层融合
-    - "决策级融合"    # 预测结果层融合
-  
-  fusion_operators: # 融合算子
-    - "跨模态注意力"  # Transformer交叉注意力
-    - "张量融合"      # 高阶特征交互
-    - "门控融合"      # 自适应权重学习
+### 分块推理引擎
+
+处理超大遥感影像的关键技术：
+
+- **自适应分块**：根据模型与显存动态调整块大小
+- **位置敏感拼接**：边缘优化的无缝拼接技术
+- **批处理调度**：内存友好的推理排程
+- **地理参考保持**：全流程保持空间参考一致性
+
+### 多模态融合策略
+
+支持多源遥感数据的融合方法：
+
+- **早期融合**：输入层数据融合
+- **特征融合**：中间层特征交互
+- **结果融合**：决策级集成
+- **跨模态注意力**：不同模态间的自适应加权
+
+### 集成Lightning优势
+
+充分利用PyTorch Lightning生态：
+
+- **分布式训练**：多GPU/多节点无缝扩展
+- **混合精度**：自动FP16训练加速
+- **实验追踪**：集成主流实验管理工具
+- **检查点管理**：智能模型保存与恢复
+- **进度可视化**：训练进程实时监控
+
+## ⏭️ 待实现功能 (TODO)
+
+### 近期计划
+
+<table>
+  <tr>
+    <td>✅ 模块化骨干网络实现</td>
+    <td>⬜ 轻量级骨干网络优化</td>
+  </tr>
+  <tr>
+    <td>✅ 分块推理基础功能</td>
+    <td>⬜ 边缘融合算法优化</td>
+  </tr>
+  <tr>
+    <td>✅ 语义分割任务支持</td>
+    <td>⬜ 实例分割任务扩展</td>
+  </tr>
+</table>
+
+### 中期计划
+
+<table>
+  <tr>
+    <td>⬜ 多模态数据融合框架</td>
+    <td>⬜ 异构数据统一表示</td>
+  </tr>
+  <tr>
+    <td>⬜ 时间序列分析支持</td>
+    <td>⬜ 变化轨迹追踪能力</td>
+  </tr>
+  <tr>
+    <td>⬜ 模型量化与剪枝</td>
+    <td>⬜ ONNX/TensorRT导出</td>
+  </tr>
+</table>
+
+### 远期计划
+
+<table>
+  <tr>
+    <td>⬜ 云原生部署架构</td>
+    <td>⬜ 分布式处理框架</td>
+  </tr>
+  <tr>
+    <td>⬜ 条件影像生成模型</td>
+    <td>⬜ 样本合成与增强</td>
+  </tr>
+  <tr>
+    <td>⬜ GIS软件插件开发</td>
+    <td>⬜ API服务化接口</td>
+  </tr>
+</table>
+
+## 💼 应用领域
+
+- **城市规划**：建筑检测、土地利用分析
+- **农业监测**：作物分类、生长监测、产量预测
+- **环境保护**：森林覆盖变化、水体监测
+- **灾害评估**：洪水范围、火灾影响、地质灾害
+- **基础设施管理**：道路网络提取、变电站检测
+
+## 🔧 安装与使用
+
+```bash
+# 安装依赖
+pip install -r requirements.txt
+
+# 训练模型
+python src/train.py
+
+# 评估模型
+python src/eval.py
 ```
 
----
+## 🤝 贡献
 
-### 🔄 全生命周期管理
-```yaml
-lifecycle_manager:
-  phases:
-    - "地理预处理"     # 空间参考系统转换
-    - "端侧优化"      # TensorRT量化压缩
-    - "持续学习"      # 增量模型更新
-    - "模型服务化"    # Triton推理服务部署
-  
-  components:
-    - "版本控制器"     # 模型/数据版本追踪
-    - "数据漂移检测"   # 概念漂移预警
-    - "自动重训练"     # 自适应模型更新策略
-```
+欢迎提交Pull Requests或Issues改进框架。详情请参阅[贡献指南](CONTRIBUTING.md)。
 
----
+## 📄 许可证
 
-### 🔌 扩展接口
-```yaml
-extension_points:
-  custom_components: # 自定义扩展
-    - "新型骨干网络"    # 注册自定义模型
-    - "领域损失函数"    # 添加专业约束
-  
-  plugin_interfaces: # 生态插件
-    - "QGIS插件"      # 与地理信息系统集成
-    - "ENVI扩展"      # 兼容传统遥感软件
-    - "EdgeTPU适配"   # 边缘设备部署支持
-```
-
----
-
-### 架构优势
-1. **模块化设计**：通过200+可插拔组件支持快速实验
-2. **多模态统一**：实现光学/SAR/激光雷达数据协同分析
-3. **全流程覆盖**：从原始数据到地理信息产品的端到端处理
-4. **生产就绪**：集成模型压缩、服务化部署等工业级特性
-5. **生态兼容**：支持与QGIS/ENVI等专业工具无缝对接
-
-该架构已在多个遥感基准数据集上验证，支持10+类典型遥感应用的快速开发，推理效率较传统方案提升3-5倍。
+[MIT License](LICENSE)
