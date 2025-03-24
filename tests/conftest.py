@@ -9,7 +9,7 @@ from hydra.core.global_hydra import GlobalHydra
 from omegaconf import DictConfig, open_dict
 
 
-@pytest.fixture(scope="package")
+@pytest.fixture(scope="package")  # pytest.fixture的作用是将函数标记为fixture，这样pytest就会自动调用它，scope="package"表示这个fixture的作用范围是整个包
 def cfg_train_global() -> DictConfig:
     """A pytest fixture for setting up a default Hydra DictConfig for training.
 
@@ -62,7 +62,7 @@ def cfg_eval_global() -> DictConfig:
 
 
 @pytest.fixture(scope="function")
-def cfg_train(cfg_train_global: DictConfig, tmp_path: Path) -> DictConfig:
+def cfg_train(cfg_train_global: DictConfig, tmp_path: Path):
     """A pytest fixture built on top of the `cfg_train_global()` fixture, which accepts a temporary
     logging path `tmp_path` for generating a temporary logging path.
 
@@ -85,7 +85,7 @@ def cfg_train(cfg_train_global: DictConfig, tmp_path: Path) -> DictConfig:
 
 
 @pytest.fixture(scope="function")
-def cfg_eval(cfg_eval_global: DictConfig, tmp_path: Path) -> DictConfig:
+def cfg_eval(cfg_eval_global: DictConfig, tmp_path: Path):
     """A pytest fixture built on top of the `cfg_eval_global()` fixture, which accepts a temporary
     logging path `tmp_path` for generating a temporary logging path.
 

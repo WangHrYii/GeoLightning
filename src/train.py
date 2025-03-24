@@ -1,3 +1,4 @@
+import os
 from typing import Any, Dict, List, Optional, Tuple
 
 import hydra
@@ -7,8 +8,9 @@ import torch
 from lightning import Callback, LightningDataModule, LightningModule, Trainer
 from lightning.pytorch.loggers import Logger
 from omegaconf import DictConfig
+import torch.optim.lr_scheduler
 
-rootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
+rootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)  # 作用是将项目根目录添加到PYTHONPATH中，这样就可以直接import项目中的模块了
 # ------------------------------------------------------------------------------------ #
 # the setup_root above is equivalent to:
 # - adding project root dir to PYTHONPATH
@@ -27,13 +29,13 @@ rootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 # ------------------------------------------------------------------------------------ #
 
 from src.utils import (
-    RankedLogger,
-    extras,
-    get_metric_value,
-    instantiate_callbacks,
-    instantiate_loggers,
-    log_hyperparameters,
-    task_wrapper,
+    RankedLogger,              # 用于记录日志
+    extras,                    # 用于处理额外的配置
+    get_metric_value,          # 用于获取优化的指标值
+    instantiate_callbacks,     # 用于实例化回调
+    instantiate_loggers,       # 用于实例化日志器
+    log_hyperparameters,       # 用于记录超参数
+    task_wrapper,              # 用于装饰任务，经过装饰的任务
 )
 
 log = RankedLogger(__name__, rank_zero_only=True)
@@ -55,7 +57,7 @@ def train(cfg: DictConfig) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         L.seed_everything(cfg.seed, workers=True)
 
     log.info(f"Instantiating datamodule <{cfg.data._target_}>")
-    datamodule: LightningDataModule = hydra.utils.instantiate(cfg.data)
+    datamodule: LightningDataModule = hydra.utils.instantiate(cfg.data)   # 通过hydra实例化数据模块，为什么可以这样实例化呢？因为在配置文件中已经指定了数据模块的类名
 
     log.info(f"Instantiating model <{cfg.model._target_}>")
     model: LightningModule = hydra.utils.instantiate(cfg.model)
@@ -84,13 +86,13 @@ def train(cfg: DictConfig) -> Tuple[Dict[str, Any], Dict[str, Any]]:
 
     if cfg.get("train"):
         log.info("Starting training!")
-        trainer.fit(model=model, datamodule=datamodule, ckpt_path=cfg.get("ckpt_path"))
+        trainer.fit(model=model, datamodule=datamodule)  # 开始训练, 真正的训练入口
 
     train_metrics = trainer.callback_metrics
 
     if cfg.get("test"):
         log.info("Starting testing!")
-        ckpt_path = trainer.checkpoint_callback.best_model_path
+        ckpt_path = trainer.checkpoint_callback.best_model_path  # 获取最佳模型的路径
         if ckpt_path == "":
             log.warning("Best ckpt not found! Using current weights for testing...")
             ckpt_path = None
@@ -105,7 +107,7 @@ def train(cfg: DictConfig) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     return metric_dict, object_dict
 
 
-@hydra.main(version_base="1.3", config_path="../configs", config_name="train.yaml")
+@hydra.main(version_base="1.3", config_path="../configs/TreeHeightUnet_config", config_name="config.yaml")  # 通过hydra.main装饰器指定配置文件的路径和名称，返回配置后的字典
 def main(cfg: DictConfig) -> Optional[float]:
     """Main entry point for training.
 
@@ -114,7 +116,7 @@ def main(cfg: DictConfig) -> Optional[float]:
     """
     # apply extra utilities
     # (e.g. ask for tags if none are provided in cfg, print cfg tree, etc.)
-    extras(cfg)
+    extras(cfg)   # 用于处理额外的配置，比如打印配置树，如果没有提供标签，则询问标签等
 
     # train the model
     metric_dict, _ = train(cfg)
