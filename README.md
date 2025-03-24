@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="images/logo_all.png" alt="GeoLightning Logo" width="400"/>
+<img src="images/logo_all.png" alt="GeoLightning Logo"/>
 
 [![python](https://img.shields.io/badge/Python_3.8+|3.9|3.10-blue?logo=python)](https://www.python.org/)
 [![pytorch](https://img.shields.io/badge/PyTorch_2.0+-ee4c2c?logo=pytorch)](https://pytorch.org/)
@@ -25,32 +25,32 @@ meta:
 
 ```
 GeoLightning/
-├── configs/               # 配置文件目录
-│   ├── configs_demo/      # 示例配置
-│   ├── TreeHeightUnet_config/ # 树高估计模型配置
-│   └── Unet_config/       # U-Net模型配置
-├── src/                   # 核心源代码
-│   ├── callbacks/         # 自定义回调
-│   ├── data/              # 数据处理模块
-│   ├── losses/            # 损失函数
-│   ├── models/            # 模型实现
-│   │   ├── backbones/     # 特征提取骨干网络
-│   │   │   └── bricks/    # 网络基础构建模块
-│   │   ├── ChangeTask/    # 变化检测任务
-│   │   ├── ClassficationTask/ # 分类任务
-│   │   ├── DetectionTask/ # 目标检测任务
-│   │   ├── MheadUnet/     # 多头U-Net
-│   │   ├── RegresstionTask/ # 回归任务
-│   │   ├── SegmentationTask/ # 分割任务
-│   │   └── SelfSupervisedTask/ # 自监督任务
-│   ├── preprocess/        # 数据预处理
-│   ├── utils/             # 工具函数
-│   ├── eval.py            # 评估入口
-│   ├── infra.py           # 基础设施
-│   └── train.py           # 训练入口
-├── tools/                 # 辅助工具脚本
-├── tests/                 # 测试套件
-└── images/                # 示例资源
+├── configs/                     # 配置文件目录
+│   ├── configs_demo/            # 示例配置
+│   ├── TreeHeightUnet_config/   # 树高估计模型配置
+│   └── Unet_config/             # U-Net模型配置
+├── src/                         # 核心源代码
+│   ├── callbacks/               # 自定义回调
+│   ├── data/                    # 数据处理模块
+│   ├── losses/                  # 损失函数
+│   ├── models/                  # 模型实现
+│   │   ├── backbones/           # 特征提取骨干网络
+│   │   │   └── bricks/          # 网络基础构建模块
+│   │   ├── ChangeTask/          # 变化检测任务
+│   │   ├── ClassficationTask/   # 分类任务
+│   │   ├── DetectionTask/       # 目标检测任务
+│   │   ├── MheadUnet/           # 多头U-Net
+│   │   ├── RegresstionTask/     # 回归任务
+│   │   ├── SegmentationTask/    # 分割任务
+│   │   └── SelfSupervisedTask/  # 自监督任务
+│   ├── preprocess/              # 数据预处理
+│   ├── utils/                   # 工具函数
+│   ├── eval.py                  # 评估入口
+│   ├── infra.py                 # 基础设施
+│   └── train.py                 # 训练入口
+├── tools/                       # 辅助工具脚本
+├── tests/                       # 测试套件
+└── images/                      # 示例资源
 ```
 
 ## 🧩 多维架构设计
