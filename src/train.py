@@ -10,6 +10,7 @@ from lightning.pytorch.loggers import Logger
 from omegaconf import DictConfig
 import torch.optim.lr_scheduler
 
+
 rootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)  # 作用是将项目根目录添加到PYTHONPATH中，这样就可以直接import项目中的模块了
 # ------------------------------------------------------------------------------------ #
 # the setup_root above is equivalent to:
@@ -38,6 +39,10 @@ from src.utils import (
     task_wrapper,              # 用于装饰任务，经过装饰的任务
 )
 
+from src.models.ClassificationTask.SwinMLP import SwinClassifier
+
+print("SwinMLP.py loaded")
+
 log = RankedLogger(__name__, rank_zero_only=True)
 
 
@@ -56,8 +61,8 @@ def train(cfg: DictConfig) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     if cfg.get("seed"):
         L.seed_everything(cfg.seed, workers=True)
 
-    log.info(f"Instantiating datamodule <{cfg.data._target_}>")
-    datamodule: LightningDataModule = hydra.utils.instantiate(cfg.data)   # 通过hydra实例化数据模块，为什么可以这样实例化呢？因为在配置文件中已经指定了数据模块的类名
+    log.info(f"Instantiating datamodule <{cfg.data.train_data._target_}>")
+    datamodule: LightningDataModule = hydra.utils.instantiate(cfg.data.train_data)   # 通过hydra实例化数据模块，为什么可以这样实例化呢？因为在配置文件中已经指定了数据模块的类名
 
     log.info(f"Instantiating model <{cfg.model._target_}>")
     model: LightningModule = hydra.utils.instantiate(cfg.model)
@@ -107,7 +112,7 @@ def train(cfg: DictConfig) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     return metric_dict, object_dict
 
 
-@hydra.main(version_base="1.3", config_path="../configs/TreeHeightUnet_config", config_name="config.yaml")  # 通过hydra.main装饰器指定配置文件的路径和名称，返回配置后的字典
+@hydra.main(version_base="1.3", config_path="../configs/debug", config_name="config.yaml")  # 通过hydra.main装饰器指定配置文件的路径和名称，返回配置后的字典
 def main(cfg: DictConfig) -> Optional[float]:
     """Main entry point for training.
 
