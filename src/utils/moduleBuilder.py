@@ -2,7 +2,7 @@
 Function:
     Implementation of BaseModuleBuilder
 Author:
-    Zhenchao Jin
+    Haoran Wang
 '''
 import copy
 import collections

@@ -34,6 +34,7 @@ from src.models.backbones.edgesamrepvit import EdgeSAMRepViT
 from src.models.backbones.mobilevit import MobileViT, MobileViTV2
 from src.models.backbones.mobilesamtinyvit import MobileSAMTinyViT
 from src.models.backbones.mobilenet import MobileNetV2, MobileNetV3
+from src.models.backbones.dinov2 import DINOv2
 
 from src.models.backbones.bricks import (
     Scale, L2Norm, makedivisible, truncnormal, 
