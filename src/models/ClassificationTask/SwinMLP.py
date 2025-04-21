@@ -86,6 +86,7 @@ class SwinClassifier(LightningModule):
         # Define optimizer
         optimizer = self.optimizer
         
+        print(type(optimizer))
         # Define learning rate scheduler
         scheduler = {
             'scheduler': torch.optim.lr_scheduler.CosineAnnealingLR(

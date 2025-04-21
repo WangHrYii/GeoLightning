@@ -333,6 +333,8 @@ class SwinTransformer(nn.Module):
             layer = BuildNormalization(placeholder=self.num_features[i], norm_cfg=norm_cfg)
             layer_name = f'norm{i}'
             self.add_module(layer_name, layer)
+        # initialization
+        self._init_weights()
         # load pretrained weights
         if pretrained:
             self.loadpretrainedweights(structure_type, pretrained_model_path)
@@ -342,7 +344,12 @@ class SwinTransformer(nn.Module):
         if pretrained_model_path and os.path.exists(pretrained_model_path):
             checkpoint = torch.load(pretrained_model_path, map_location='cpu')
         else:
-            checkpoint = model_zoo.load_url(DEFAULT_MODEL_URLS[structure_type], map_location='cpu')
+            checkpoint = model_zoo.load_url(DEFAULT_MODEL_URLS[structure_type],
+                        model_dir= pretrained_model_path,
+                        map_location='cpu', # 根据需要设置 map_location
+                        progress=True       # 显示下载进度条
+                    )
+            
         if 'state_dict' in checkpoint:
             state_dict = checkpoint['state_dict']
         elif 'model' in checkpoint:

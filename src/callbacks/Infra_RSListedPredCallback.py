@@ -1,4 +1,4 @@
-from pytorch_lightning import Callback
+from lightning import Callback
 from osgeo import gdal
 import numpy as np
 

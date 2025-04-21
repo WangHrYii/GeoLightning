@@ -1,0 +1,44 @@
+_target_: src.data.rs_seg_dataset.RSBaseSegDataModule
+
+# # 数据集名称，便于在代码中打印或记录
+# NAME: "rs_seg_dataset"
+
+# 数据集属性
+num_classes: 2
+class_weight: null
+band_num: 3
+
+# 训练集配置
+train_img_path: "./data/train/images"    # 注意：尽量使用相对路径
+train_gt_path: "./data/train/labels"
+# 如果有专门的列表文件，可以配置为：
+train_img_list: "./data/train/train_img_list.txt"  # 可选
+train_gt_list: "./data/train/train_gt_list.txt"    # 可选
+
+# 验证集配置
+val_img_path: "./data/val/images"
+val_gt_path: "./data/val/labels"
+val_img_list: "./data/val/val_img_list.txt"        # 可选
+val_gt_list: "./data/val/val_gt_list.txt"          # 可选
+
+# 测试集配置（如果有测试集的话）
+test_img_path: "./data/test/images"
+test_out_path: "./data/test/out"
+test_img_list: "./data/test/test_img_list.txt"      # 可选
+
+# 文件后缀等信息
+img_suffix: ".tif"
+gt_suffix: ".tif"
+
+# 数据归一化相关（均值和标准差）
+mean_file: "./data/mean_value.txt"
+std_file: "./data/std_value.txt"
+
+# 颜色表文件（如需要对标签进行上色）
+color_table_file: "./data/color_table.txt"
+class_info: list[dict[str, any]] = field(default_factory=list)
+
+# 额外添加无标签数据的路径
+# 这部分字段主要用于半监督或自监督学习，
+# 当你采用这两种范式时，代码可以根据配置读取unlabeled_img_path来加载无标签数据
+unlabeled_img_path: "./data/unlabeled/images"

@@ -1,0 +1,15 @@
+# https://swanlab.cn/
+
+swanlab:
+  _target_: swanlab.integration.pytorch_lightning.SwanLabLogger
+  project: null  # 项目名称
+  workspace: null  # 工作空间名称
+  experiment_name: null  # 实验名称
+  description: null  # 实验描述
+  config: null  # 配置，可以是字典或字符串
+  logdir: "${paths.output_dir}"  # 日志目录
+  mode: "local"  # 模式，默认为 "cloud"
+  load: null  # 加载的实验 ID 或名称
+  public: false  # 是否公开实验
+  callbacks: []  # 回调列表
+  kwargs: {}  # 其他关键字参数

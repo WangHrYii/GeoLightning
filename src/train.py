@@ -5,6 +5,7 @@ import hydra
 import lightning as L
 import rootutils
 import torch
+torch.set_float32_matmul_precision('high')
 from lightning import Callback, LightningDataModule, LightningModule, Trainer
 from lightning.pytorch.loggers import Logger
 from omegaconf import DictConfig
@@ -39,10 +40,6 @@ from src.utils import (
     task_wrapper,              # 用于装饰任务，经过装饰的任务
 )
 
-from src.models.ClassificationTask.SwinMLP import SwinClassifier
-
-print("SwinMLP.py loaded")
-
 log = RankedLogger(__name__, rank_zero_only=True)
 
 
@@ -61,11 +58,11 @@ def train(cfg: DictConfig) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     if cfg.get("seed"):
         L.seed_everything(cfg.seed, workers=True)
 
-    log.info(f"Instantiating datamodule <{cfg.data.train_data._target_}>")
-    datamodule: LightningDataModule = hydra.utils.instantiate(cfg.data.train_data)   # 通过hydra实例化数据模块，为什么可以这样实例化呢？因为在配置文件中已经指定了数据模块的类名
+    log.info(f"Instantiating datamodule <{cfg.train_data._target_}>")
+    datamodule: LightningDataModule = hydra.utils.instantiate(cfg.train_data)   # 通过hydra实例化数据模块，为什么可以这样实例化呢？因为在配置文件中已经指定了数据模块的类名
 
     log.info(f"Instantiating model <{cfg.model._target_}>")
-    model: LightningModule = hydra.utils.instantiate(cfg.model)
+    model: LightningModule = hydra.utils.instantiate(cfg.model, _recursive_=False)
 
     log.info("Instantiating callbacks...")
     callbacks: List[Callback] = instantiate_callbacks(cfg.get("callbacks"))
@@ -119,6 +116,7 @@ def main(cfg: DictConfig) -> Optional[float]:
     :param cfg: DictConfig configuration composed by Hydra.
     :return: Optional[float] with optimized metric value.
     """
+    log.info("测试日志信息，检查是否写入文件。") # 发送一条日志
     # apply extra utilities
     # (e.g. ask for tags if none are provided in cfg, print cfg tree, etc.)
     extras(cfg)   # 用于处理额外的配置，比如打印配置树，如果没有提供标签，则询问标签等

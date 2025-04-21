@@ -14,7 +14,7 @@ from osgeo import gdal
 
 from typing import Any, Dict, Optional
 
-rootutils.setup_root('/home/whr/Codes/CLFoundation/CLFoundation/src/train.py', indicator=".project-root", pythonpath=True)
+# rootutils.setup_root('/home/whr/Codes/CLFoundation/CLFoundation/src/train.py', indicator=".project-root", pythonpath=True)
 
 from src.utils import RankedLogger
 

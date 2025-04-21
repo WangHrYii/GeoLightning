@@ -1,0 +1,195 @@
+# -*- coding: utf-8 -*-
+# @Time    : 2025/4/14 10:00
+# @Author  : wzq
+# @File    : config_test_wzq.yaml
+# @Software: PyCharm
+hydra:
+  run:
+   dir: ${hydra:runtime.cwd}/outputs/${task_name}/${train_data.cfg.name}/${model.cfg.net.net_name}_${model.cfg.net.backbone.structure_type}_${now:%Y%m%d_%H%M%S}
+
+task_name: semantic_segmentation
+tags:
+- debug
+train: true
+test: false
+ckpt_path: null
+seed: 100
+
+train_data:
+  _target_: src.data.rs_seg_dataset.RSBaseSegDataModule
+  cfg:
+    name: vaihingen
+    num_classes: 7
+    ignore_index: 0
+    band_num: 3
+    train_batch_size: 8
+    val_batch_size: 8
+    data_workers: 4
+    train_img_path: /home/dataset/vaihingen/img_dir/train
+    train_gt_path: /home/dataset/vaihingen/ann_dir/train
+    val_img_path: /home/dataset/vaihingen/img_dir/val
+    val_gt_path: /home/dataset/vaihingen/ann_dir/val
+    img_suffix: .png
+    gt_suffix: .png
+    mean_file: /home/dataset/vaihingen/mean_value.txt
+    std_file: /home/dataset/vaihingen/std_value.txt
+    color_table_file: /home/dataset/vaihingen/color_table.txt
+    class_info: list[dict[str, any]] = field(default_factory=list)
+    use_data_enhancement: true
+    aug_resize: false
+    aug_resize_size: 256
+    aug_p: 0.5
+    aug_crop: false
+    aug_crop_size: 640
+    aug_flip: true
+    aug_transpose: true
+    aug_scale: false
+    aug_scale_limit: [0.5, 2]
+    aug_shift_scale_rotate: true
+    aug_ssr_limits: [0.1, 0.1, 45]
+    aug_optical_distortion: false
+    aug_grid_distortion: true
+    aug_elastic_transform: false
+    aug_hsv: true
+    aug_hsv_limit: [15, 5, 15]
+
+model:
+  _target_: src.models.SegmentationTask.GenerateNet.SemanticSegmentationLightning
+  cfg:
+    net:
+      num_classes: ${train_data.cfg.num_classes}
+      net_name: "res_unet"                        # 模型名称，例如 "unet"
+      backbone:
+        _target_: src.models.backbones.ResNet
+        in_channels: ${train_data.cfg.band_num}
+        structure_type: resnet50conv3x3stem
+        use_conv3x3_stem: false
+        outstride: 32
+        pretrained_model_path: "/home/code/pre_models" # backbone预训练权重存放文件夹路径
+    net_pretrained_file: null # net预训练权重文件路径：null就不是微调，有就会覆盖原来的路径
+    ignore_index: ${train_data.cfg.ignore_index}
+    visualization:            # 可视化训练集和验证集图片
+      num_samples: 5          # 每次可视化的样本数
+      interval: 1           # 每隔多少个epoch可视化一次
+      display_bands: [0, 1, 2]    # 红  绿  蓝
+      color_table_file: ${train_data.cfg.color_table_file}
+    loss:
+      loss_func: ["ce"]             # 损失函数列表，可选 'ce', 'batch_ce', 'soft_ce', 'sym_ce', 'dice'
+      loss_weight: [1]              # 损失函数权重
+      ignore_index: ${train_data.cfg.ignore_index}               # 在计算损失时忽略的类别索引（例如背景类别）
+      class_weight: null #默认都为1
+    optimizer:
+      name: "adam"         # 优化器类型，可选 'sgd'、'adam'、'radam'、'adamw'
+      lr: 1e-4               # 基础训练学习率
+      momentum: 0.9        # 优化器动量（适用于sgd优化器）
+      weight_decay: 0.001  # 权重衰减（用于所有主流优化器）
+    scheduler:
+      backbone_lr_scale: 1           # 骨干网络学习率相对于train_lr的比例倍数
+      lr_scheduler: "one_cycle"        # 学习率调度器类型，可选 'freezed', 'step_lr', 'multistep_lr', 'exp_lr', 'cos_lr', 'cos_restart', 'one_cycle'
+      lr_scheduler_gamma: 1e4        # 学习率更新因子
+      lr_step_size: 1               # 对于step_lr，每隔多少个epoch更新一次学习率
+      lr_steps: [30, 60, 90]        # 对于multistep_lr，在哪些epoch时更新学习率
+      cos_lr_t: 10                  # 对于cos_lr或cos_restart，退火周期（epoch数）
+      cos_t_mult: 1                 # 对于cos_restart，下一个退火周期相对于上一个周期的倍数
+      steps_per_epoch: null         # 对于one_cycle，若未指定则自动计算每个epoch的步数
+logger:
+  swanlab:
+    _target_: swanlab.integration.pytorch_lightning.SwanLabLogger
+    project: null  # 项目名称
+    workspace: null  # 工作空间名称
+    experiment_name: null  # 实验名称
+    description: null  # 实验描述
+    config: null  # 配置，可以是字典或字符串
+    logdir: "${paths.output_dir}"  # 日志目录
+    mode: "local"  # 模式，默认为 "cloud"
+    load: null  # 加载的实验 ID 或名称
+    public: false  # 是否公开实验
+
+trainer:
+  _target_: lightning.pytorch.trainer.Trainer
+  accelerator: "gpu"
+  devices: 1  # 使用多个GPU
+  # 分布式训练策略配置
+  strategy: "ddp"        # 可选: "ddp", "ddp_spawn", "deepspeed", "fsdp" 等
+  sync_batchnorm: true   # 是否同步批归一化
+  # 性能优化参数
+  precision: 16-mixed        # 可选: 16, 32, "bf16"
+  gradient_clip_val: 5.0  # 梯度裁剪
+  accumulate_grad_batches: 1  # 梯度累积
+  deterministic: false  # 是否使用确定性算法
+  default_root_dir: ${paths.output_dir}
+  min_epochs: 1
+  max_epochs: 50
+  check_val_every_n_epoch: 1
+  log_every_n_steps: 30
+
+callbacks:
+  model_checkpoint:
+    _target_: lightning.pytorch.callbacks.ModelCheckpoint
+    dirpath: ${paths.output_dir}/checkpoints
+    filename: epoch_{epoch:03d}-val_mIoU_{val_mIoU:.4f}
+    monitor: val_mIoU/Average
+    verbose: false
+    save_last: true
+    save_top_k: 3
+    mode: max
+    auto_insert_metric_name: false
+    save_weights_only: false
+    every_n_train_steps: null
+    train_time_interval: null
+    every_n_epochs: null
+    save_on_train_epoch_end: null
+  early_stopping:
+    _target_: lightning.pytorch.callbacks.EarlyStopping
+    monitor: val_mIoU/Average
+    min_delta: 0.0
+    patience: 100
+    verbose: false
+    mode: max
+    strict: true
+    check_finite: true
+    stopping_threshold: null
+    divergence_threshold: null
+    check_on_train_epoch_end: null
+  model_summary:
+    _target_: lightning.pytorch.callbacks.RichModelSummary
+    max_depth: -1
+  rich_progress_bar:
+    _target_: lightning.pytorch.callbacks.RichProgressBar
+
+paths:
+  root_dir: ${oc.env:PROJECT_ROOT}
+  output_dir: ${hydra:runtime.output_dir}
+  work_dir: ${hydra:runtime.cwd}
+
+extras:
+  ignore_warnings: false
+  enforce_tags: true
+  print_config: true
+
+
+
+
+# test_use_dist: false             # 是否启用分布式测试
+# test_ckpt: null                  # 测试时加载的模型检查点路径，如无则为null
+# threshold: 0.5                   # 模型输出转换为二值预测时的阈值
+# test_img_size: 512               # 测试时图像的尺寸（如需要对图像进行缩放）
+# test_pixel_overlap: 128          # 测试时图像切块之间的像素重叠数量
+# dynamic_mean: false              # 是否在测试时使用动态均值进行归一化
+# use_shapefile_out: true          # 是否将测试结果输出为shapefile格式（如适用）
+# resume: 0                        # 续训或断点恢复时的起始点（例如续训开始的epoch数）
+# force_to_simgle_class: null       # 是否强制将预测结果转换为单一类别（如有需要），否则为null
+# use_transparent_background: true  # 是否对未知区域使用透明背景（或填0）
+# build_overviews: true            # 是否为输出图像构建金字塔（overviews，用于大图显示）
+# with_clahe: false                # 是否应用clahe（对比度受限直方图均衡化）
+# test_batches: 32                 # 测试时的批次大小
+# test_gpus: [0]                   # 测试时使用的gpu编号列表
+# error_log: null                 # 错误日志文件的路径，如有需要记录错误信息
+# retry: 100                       # 测试或数据加载时的最大重试次数
+
+
+
+
+
+
+
