@@ -1,0 +1,98 @@
+task_name: TreeHeightUnet
+tags:
+- dev
+train: true
+test: true
+ckpt_path: /home/whr/Codes/CLFoundation/CLFoundation/outputs/2025-01-13/17-25-32/checkpoints/last.ckpt
+seed: null
+train_data:
+  _target_: src.data.MTaskSemSegDataset.TreeHeightDataset
+  images_dir: /mnt/data/TreeHeight/image_256
+  mask_dir: /mnt/data/TreeHeight/treecover_256
+  assist_dir: /mnt/data/TreeHeight/nDSM_256
+  scale: 1
+  mask_values: [0, 1]
+  batch_size: 64
+infra_data:
+  _target_: src.data.Infra_RSTiledPredDataset.RSTiledPredDatasetLD
+  file_path: /mnt/data/TreeHeight/raster_1m_cropped.tif
+  patch_size: 512
+  overlap: 0.25
+  batch_size: 8
+  num_workers: 4
+model:
+  _target_: src.models.MultiHeadTask.MINTHEModule
+  encoder: vitb
+  seg_features: 128
+  height_features: 128
+  backbone_lr: 0.000001
+  seg_head_lr: 0.0002
+  height_head_lr: 0.0002
+  interaction_modules_lr: 0.0002
+  pretrained_depth_weights: /home/whr/Codes/GeoLightning/ckpts/depth_anything_v2_vitb.pth
+callbacks:
+  model_checkpoint:  # 内置的回调函数，用于保存模型
+    _target_: lightning.pytorch.callbacks.ModelCheckpoint
+    dirpath: ${paths.output_dir}/checkpoints
+    filename: epoch_{epoch:03d}
+    monitor: val_r2
+    verbose: false
+    save_last: true
+    save_top_k: 3
+    mode: max
+    auto_insert_metric_name: true  # 自动插入metric名称，意思是在filename中自动插入metric名称
+    save_weights_only: false
+    every_n_train_steps: null
+    train_time_interval: null
+    every_n_epochs: null
+    save_on_train_epoch_end: null 
+  early_stopping:    # 内置的回调函数，用于提前停止训练
+    _target_: lightning.pytorch.callbacks.EarlyStopping
+    monitor: val_r2
+    min_delta: 0.0
+    patience: 100
+    verbose: false
+    mode: max
+    strict: true
+    check_finite: true
+    stopping_threshold: null
+    divergence_threshold: null
+    check_on_train_epoch_end: null
+  infra_callback:
+    _target_: src.callbacks.Infra_RSTiledPredCallback.PredictionCallback
+    output_path: ${paths.output_dir}/prediction_results.tif
+    overlap: ${infra_data.overlap}   # 与数据集的overlap对应, ${} 用于引用其他配置, 便于修改
+    task_names: ["height", "cover"]  # 与模型的多头输出对应
+  model_summary:
+    _target_: lightning.pytorch.callbacks.RichModelSummary
+    max_depth: -1
+  rich_progress_bar:
+    _target_: lightning.pytorch.callbacks.RichProgressBar
+logger:
+  wandb:
+    _target_: lightning.pytorch.loggers.WandbLogger
+    project: "tree_height_unet"
+    # 设置name，包含时间戳、模型类型、各模块学习率和batch size
+    name: ${now:%Y-%m-%d_%H-%M-%S}_${model.encoder}_blr${model.backbone_lr}_slr${model.seg_head_lr}_hlr${model.height_head_lr}_ilr${model.interaction_modules_lr}_bs${train_data.batch_size}
+    save_dir: ${paths.log_dir}
+    log_model: false
+trainer:
+  _target_: lightning.pytorch.trainer.Trainer
+  default_root_dir: ${paths.output_dir}
+  min_epochs: 10
+  max_epochs: 80
+  accelerator: gpu
+  precision: 16-mixed
+  devices: 1
+  check_val_every_n_epoch: 1
+  deterministic: false
+paths:
+  root_dir: ${oc.env:PROJECT_ROOT}
+  data_dir: ${paths.root_dir}/data/
+  log_dir: ${paths.root_dir}/logs/
+  output_dir: ${hydra:runtime.output_dir}
+  work_dir: ${hydra:runtime.cwd}
+extras:
+  ignore_warnings: true
+  enforce_tags: true
+  print_config: true

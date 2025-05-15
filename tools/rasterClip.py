@@ -70,7 +70,7 @@ def clip_raster_with_shapefile_v2(raster_path, shapefile_path, output_path):
         reproject_shapefile_path = shapefile_path
     else:
         # 重新投影矢量文件，使得矢量文件和栅格文件在同一坐标系下
-        reproject_shapefile_gdf = reproject_shapefile(shapefile_path, raster_proj)
+        reproject_shapefile_gdf = reproject_shapefile(shapefile_path, raster_path)
         reproject_shapefile_path = shapefile_path.replace('.shp', '_reprojected.shp')
         reproject_shapefile_gdf.to_file(reproject_shapefile_path)
     
@@ -129,8 +129,6 @@ def TifCrop(TifPath, SavePath, CropSize, RepetitionRate):
     SavePath: 输出影像保存路径
     CropSize: 裁剪尺寸
     RepetitionRate: 重复率
-    TODO: 2.现在必须输入完整的save路径，需要优化成只输入文件夹路径，自动创建文件夹
-          3.改写为rasterio版本
     """
     if not os.path.exists(SavePath): os.makedirs(SavePath)
     
@@ -205,9 +203,26 @@ def TifCrop(TifPath, SavePath, CropSize, RepetitionRate):
 
 
 
-# # 示例调用
-# raster_path = '/mnt/data/Tree/TreeHeight/tree_cover/tree_reprojected.tif'
-# shapefile_path = '/mnt/data/Tree/TreeHeight/boundary/boundary.shp'
-# output_path = '/mnt/data/Tree/TreeHeight/tree_cover/tree_crop_bound_reproj.tif'
+# 示例调用
+# raster_path = '/mnt/data/TreeHeight/raster_1m.tif'
+# shapefile_path = '/mnt/data/TreeHeight/boundary/boundary/boundary.shp'
+# output_path = '/mnt/data/TreeHeight/raster_1m_cropped.tif'
 
 # clip_raster_with_shapefile_v2(raster_path, shapefile_path, output_path)
+
+tree_cover_path = '/mnt/data/TreeHeight/treecover/treecover_reproj_cropped.tif'
+image_path = '/mnt/data/TreeHeight/raster_1m_cropped.tif'
+nDSM_path = '/mnt/data/TreeHeight/nDSM_cropped_boundary.tif'
+
+tree_cover_save_croped_path = '/mnt/data/TreeHeight/treecover/treecover_256'
+image_save_croped_path = '/mnt/data/TreeHeight/image_256'
+nDSM_save_croped_path = '/mnt/data/TreeHeight/nDSM_256'
+
+TifCrop(tree_cover_path, tree_cover_save_croped_path, 256, 0.25)
+TifCrop(image_path, image_save_croped_path, 256, 0.25)
+TifCrop(nDSM_path, nDSM_save_croped_path, 256, 0.25)
+
+
+
+
+

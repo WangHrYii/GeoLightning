@@ -151,6 +151,8 @@ configs/local/default.yaml
 /outputs/
 /test_results/
 .env
+/lightning_logs/
+/ckpts/
 
 # Aim logging
 .aim

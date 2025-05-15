@@ -6,6 +6,8 @@ import torch.nn.functional as F
 import os
 import numpy as np
 from PIL import Image
+import wandb
+import matplotlib.pyplot as plt
 
 from src.models.MheadUnet.unet_parts import Down, Up, OutConv, DoubleConv
 
@@ -123,142 +125,323 @@ class MheadUNetLM(LightningModule):
         self.compile = compile
         
         # 分割精度
-        self.calculate_f1  = F1Score(num_classes=net.n_classes, task="multiclass")      # 计算F1
-        self.calculaye_iou = JaccardIndex(num_classes=net.n_classes, task="multiclass") # 计算IoU
+        self.calculate_f1 = F1Score(num_classes=net.n_classes, task="binary")      # 计算F1
+        self.calculate_iou = JaccardIndex(num_classes=net.n_classes, task="binary") # 计算IoU
 
         # 回归精度
         self.calculate_mse = MeanSquaredError()    # 计算MSE
         self.calculate_mae = MeanAbsoluteError()   # 计算MAE
-        self.calculate_r2  = R2Score()             # 计算R2
+        self.calculate_r2 = R2Score()              # 计算R2
+
+        # 用于存储验证样本
+        self.validation_samples = None
 
     def forward(self, x):
         return self.net(x)
 
     def training_step(self, batch, batch_idx):
         x, mask, regression, _ = batch
+        mask = mask.unsqueeze(1)  # 增加一个维度
+        regression = regression.unsqueeze(1)  # 增加一个维度
         logits, reg = self.net(x)
-        reg = reg.squeeze(1)
 
-        loss_seg = F.cross_entropy(logits, mask)
+        # 分割损失
+        bce_loss = F.binary_cross_entropy_with_logits(logits, mask.float())
+        dice_loss = self._dice_loss(logits, mask)
+        iou_loss = self._iou_loss(logits, mask)
+        seg_loss = bce_loss + dice_loss + iou_loss
 
-        # 筛选出mask不为0的位置
-        mask_non_zero = mask.flatten() != 0
-        mask_zero = mask.flatten() == 0
+        # 高度损失 - 只计算mask>0的部分
+        mask_bool = mask > 0
+        
+        # 检查是否有足够的样本
+        if mask_bool.sum() > 1:  # 至少需要2个样本计算R2
+            l1_loss = F.l1_loss(reg[mask_bool], regression[mask_bool])
+            l2_loss = F.mse_loss(reg[mask_bool], regression[mask_bool])
+            
+            # 计算R2损失 - 只计算mask>0的部分
+            ss_res = torch.sum((regression[mask_bool] - reg[mask_bool]) ** 2)
+            ss_tot = torch.sum((regression[mask_bool] - regression[mask_bool].mean()) ** 2)
+            r2_loss = 1 - (ss_res / (ss_tot + 1e-8))
+            
+            # 组合高度损失
+            height_loss = l1_loss + l2_loss
+        else:
+            # 如果没有足够的样本，使用零损失
+            l1_loss = torch.tensor(0.0, device=reg.device)
+            l2_loss = torch.tensor(0.0, device=reg.device)
+            r2_loss = torch.tensor(0.0, device=reg.device)
+            height_loss = torch.tensor(0.0, device=reg.device)
 
-        reg_selected = reg.flatten()[mask_non_zero]
-        regression_selected = regression.flatten()[mask_non_zero]
+        # 总损失
+        loss = seg_loss + height_loss
 
-        reg_selected_zero = reg.flatten()[mask_zero]
-        regression_selected_zero = regression.flatten()[mask_zero]
-
-        loss_reg_1 = F.mse_loss(reg_selected, regression_selected) + F.l1_loss(reg_selected, regression_selected)
-        loss_reg_0 = F.mse_loss(reg_selected_zero, regression_selected_zero) + F.l1_loss(reg_selected_zero, regression_selected_zero)
-
-        loss_reg = loss_reg_1 + loss_reg_0
-
+        # 计算指标
         f1_score = self.calculate_f1(logits, mask)
-        iou_score = self.calculaye_iou(logits, mask)
+        iou_score = self.calculate_iou(logits, mask)
+        
+        # 回归指标 - 只计算mask>0的部分
+        if mask_bool.sum() > 1:
+            mse = F.mse_loss(reg[mask_bool], regression[mask_bool])
+            mae = F.l1_loss(reg[mask_bool], regression[mask_bool])
+            
+            # 展平张量以计算R2 - 只计算mask>0的部分
+            reg_flat = reg[mask_bool].view(-1)
+            regression_flat = regression[mask_bool].view(-1)
+            
+            # 确保有足够的样本计算R2
+            if len(reg_flat) > 1:
+                r2 = self.calculate_r2(reg_flat, regression_flat)
+            else:
+                r2 = torch.tensor(0.0, device=reg.device)
+        else:
+            mse = torch.tensor(0.0, device=reg.device)
+            mae = torch.tensor(0.0, device=reg.device)
+            r2 = torch.tensor(0.0, device=reg.device)
 
-        loss = loss_seg + loss_reg
-        self.log("train_seg_loss", loss_seg, prog_bar=True)
-        self.log("train_reg_loss", loss_reg, prog_bar=True)
+        # 记录学习率
+        for i, param_group in enumerate(self.trainer.optimizers[0].param_groups):
+            self.log(f"lr/group_{i}", param_group['lr'], on_step=True)
 
-        self.log("train_f1", f1_score, prog_bar=True)
-        self.log("train_iou", iou_score, prog_bar=True)
-
-        self.log("train_loss", loss, prog_bar=True)
+        # 记录损失和指标
+        self.log("train/seg_loss", seg_loss, prog_bar=True)
+        self.log("train/height_loss", height_loss, prog_bar=True)
+        self.log("train/total_loss", loss, prog_bar=True)
+        self.log("train/f1", f1_score, prog_bar=True)
+        self.log("train/iou", iou_score, prog_bar=True)
+        self.log("train/mse", mse, prog_bar=True)
+        self.log("train/mae", mae, prog_bar=True)
+        self.log("train/r2", r2, prog_bar=True)
+        self.log("train/height_max", reg[mask_bool].max() if mask_bool.any() else torch.tensor(0.0, device=reg.device), on_step=False, on_epoch=True, reduce_fx=torch.max)
         
         return loss
 
     def validation_step(self, batch, batch_idx):
         x, mask, regression, _ = batch
+        mask = mask.unsqueeze(1)  # 增加一个维度
+        regression = regression.unsqueeze(1)  # 增加一个维度
         logits, reg = self.net(x)
-        reg = reg.squeeze(1)
 
-        loss_seg = F.cross_entropy(logits, mask)
-        loss_reg = F.mse_loss(reg, regression) + F.l1_loss(reg, regression)
+        # 分割损失
+        bce_loss = F.binary_cross_entropy_with_logits(logits, mask.float())
+        dice_loss = self._dice_loss(logits, mask)
+        iou_loss = self._iou_loss(logits, mask)
+        seg_loss = bce_loss + dice_loss + iou_loss
 
-        f1_score = self.calculate_f1(logits, mask)
-        iou_score = self.calculaye_iou(logits, mask)
-
-        # mse = self.calculate_mse(reg, regression)
-        # mae = self.calculate_mae(reg, regression)
+        # 高度损失 - 只计算mask>0的部分
+        mask_bool = mask > 0
         
-        # # 计算r2之前需要先Expected both prediction and target to be 1D or 2D tensors
-        # reg = reg.view(-1)
-        # regression = regression.view(-1)
-        # r2 = self.calculate_r2(reg, regression)
+        # 检查是否有足够的样本
+        if mask_bool.sum() > 1:  # 至少需要2个样本计算R2
+            l1_loss = F.l1_loss(reg[mask_bool], regression[mask_bool])
+            l2_loss = F.mse_loss(reg[mask_bool], regression[mask_bool])
+            
+            # 计算R2损失 - 只计算mask>0的部分
+            ss_res = torch.sum((regression[mask_bool] - reg[mask_bool]) ** 2)
+            ss_tot = torch.sum((regression[mask_bool] - regression[mask_bool].mean()) ** 2)
+            r2_loss = 1 - (ss_res / (ss_tot + 1e-8))
+            
+            # 组合高度损失
+            height_loss = l1_loss + l2_loss + (1 - r2_loss) * 10
+        else:
+            # 如果没有足够的样本，使用零损失
+            l1_loss = torch.tensor(0.0, device=reg.device)
+            l2_loss = torch.tensor(0.0, device=reg.device)
+            r2_loss = torch.tensor(0.0, device=reg.device)
+            height_loss = torch.tensor(0.0, device=reg.device)
 
-        loss = loss_seg + loss_reg
-        self.log("val_seg_loss", loss_seg, prog_bar=True)
-        self.log("val_reg_loss", loss_reg, prog_bar=True)
-        self.log("val_loss", loss, prog_bar=True)
+        # 总损失
+        loss = seg_loss + height_loss
 
-        # 计算mask==1的像素点的mse和mae以及r2
-        # 筛选出mask不为0的位置
-        mask_non_zero = mask.flatten() != 0
-        reg_selected = reg.flatten()[mask_non_zero]
-        regression_selected = regression.flatten()[mask_non_zero]
+        # 计算指标
+        f1_score = self.calculate_f1(logits, mask)
+        iou_score = self.calculate_iou(logits, mask)
+        
+        # 回归指标 - 只计算mask>0的部分
+        if mask_bool.sum() > 1:
+            mse = F.mse_loss(reg[mask_bool], regression[mask_bool])
+            mae = F.l1_loss(reg[mask_bool], regression[mask_bool])
+            
+            # 展平张量以计算R2 - 只计算mask>0的部分
+            reg_flat = reg[mask_bool].view(-1)
+            regression_flat = regression[mask_bool].view(-1)
+            
+            # 确保有足够的样本计算R2
+            if len(reg_flat) > 1:
+                r2 = self.calculate_r2(reg_flat, regression_flat)
+            else:
+                r2 = torch.tensor(0.0, device=reg.device)
+        else:
+            mse = torch.tensor(0.0, device=reg.device)
+            mae = torch.tensor(0.0, device=reg.device)
+            r2 = torch.tensor(0.0, device=reg.device)
 
-        mse = self.calculate_mse(reg_selected, regression_selected)
-        mae = self.calculate_mae(reg_selected, regression_selected)
-        r2 = self.calculate_r2(reg_selected, regression_selected)
+        # 记录损失和指标
+        self.log("val/seg_loss", seg_loss, prog_bar=True)
+        self.log("val/height_loss", height_loss, prog_bar=True)
+        self.log("val/total_loss", loss, prog_bar=True)
+        self.log("val/f1", f1_score, prog_bar=True)
+        self.log("val/iou", iou_score, prog_bar=True)
+        self.log("val/mse", mse, prog_bar=True)
+        self.log("val/mae", mae, prog_bar=True)
+        self.log("val/r2", r2, prog_bar=True)
+        self.log("val/height_max", reg[mask_bool].max() if mask_bool.any() else torch.tensor(0.0, device=reg.device), on_epoch=True, reduce_fx=torch.max)
 
-        self.log("val_mse", mse, prog_bar=True)
-        self.log("val_mae", mae, prog_bar=True)
-        self.log("val_r2", r2, prog_bar=True)
-
-        self.log("val_f1", f1_score, prog_bar=True)
-        self.log("val_iou", iou_score, prog_bar=True)
-
-        self.log("val_f1+val_r2", f1_score + r2, prog_bar=False)
+        # 存储第一个batch的样本用于可视化
+        if batch_idx == 0:
+            self.validation_samples = {
+                'images': x.cpu(),
+                'seg_gt': mask.cpu(),
+                'height_gt': regression.cpu(),
+                'seg_pred': torch.sigmoid(logits).cpu(),
+                'height_pred': reg.cpu()
+            }
         
         return loss
+
+    def on_validation_epoch_end(self):
+        if self.validation_samples is not None:
+            # 随机选择3张图片进行可视化
+            indices = torch.randperm(len(self.validation_samples['images']))[:3]
+            
+            for i,idx in enumerate(indices):
+                # 创建可视化
+                fig, axes = plt.subplots(1, 5, figsize=(20, 4))
+                
+                # 原始图像 - 只取前三个波段(RGB)
+                img = self.validation_samples['images'][idx].permute(1, 2, 0).numpy()
+                img = img[..., :3].astype(np.uint8)
+                axes[0].imshow(img)
+                axes[0].set_title('Original Image (RGB)')
+                axes[0].axis('off')
+                
+                # 分割真值
+                seg_gt = self.validation_samples['seg_gt'][idx].squeeze(0).numpy()
+                axes[1].imshow(seg_gt, cmap='gray')
+                axes[1].set_title('Segmentation GT')
+                axes[1].axis('off')
+                
+                # 高度真值
+                height_gt = self.validation_samples['height_gt'][idx].squeeze(0).numpy()
+                im = axes[2].imshow(height_gt, cmap='viridis')
+                axes[2].set_title('Height GT')
+                axes[2].axis('off')
+                plt.colorbar(im, ax=axes[2])
+                
+                # 分割预测
+                seg_pred = self.validation_samples['seg_pred'][idx].squeeze(0).numpy()
+                axes[3].imshow(seg_pred, cmap='gray')
+                axes[3].set_title('Segmentation Pred')
+                axes[3].axis('off')
+                
+                # 高度预测
+                height_pred = self.validation_samples['height_pred'][idx].squeeze(0).numpy()
+                im = axes[4].imshow(height_pred, cmap='viridis')
+                axes[4].set_title('Height Pred')
+                axes[4].axis('off')
+                plt.colorbar(im, ax=axes[4])
+                
+                plt.tight_layout()
+                
+                # 记录到wandb
+                wandb.log({
+                    f"validation_sample_{i}": wandb.Image(fig),
+                    "epoch": self.current_epoch
+                })
+                plt.close()
+            
+            # 清理样本
+            self.validation_samples = None
 
     def test_step(self, batch, batch_idx):
         x, mask, regression, name = batch
+        mask = mask.unsqueeze(1)  # 增加一个维度
+        regression = regression.unsqueeze(1)  # 增加一个维度
         logits, reg = self.net(x)
-        reg = reg.squeeze(1)
 
-        # 保存预测结果，回归和分类结果都保存，保存为图片
-        # 保存分类结果
-        # logits = torch.argmax(logits, dim=1)
-        # logits = logits.cpu().numpy()
-        # if not os.path.exists("test_results"):
-        #     os.makedirs("test_results")
-        # for i in range(logits.shape[0]):
-        #     Image.fromarray(logits[i].astype(np.uint8)).save(f"test_results/{name[i]}_seg.png", cmap="gray")
-        # # 保存回归结果
-        # reg = reg.cpu().numpy()
-        # for i in range(reg.shape[0]):
-        #     Image.fromarray(reg[i].astype(np.uint8)).save(f"test_results/{name[i]}_reg.png", cmap="gray")
+        # 分割损失
+        bce_loss = F.binary_cross_entropy_with_logits(logits, mask.float())
+        dice_loss = self._dice_loss(logits, mask)
+        iou_loss = self._iou_loss(logits, mask)
+        seg_loss = bce_loss + dice_loss + iou_loss
 
-        loss_seg = F.cross_entropy(logits, mask)
-        loss_reg = F.mse_loss(reg, regression) + F.l1_loss(reg, regression)
+        # 高度损失 - 只计算mask>0的部分
+        mask_bool = mask > 0
+        
+        # 检查是否有足够的样本
+        if mask_bool.sum() > 1:  # 至少需要2个样本计算R2
+            l1_loss = F.l1_loss(reg[mask_bool], regression[mask_bool])
+            l2_loss = F.mse_loss(reg[mask_bool], regression[mask_bool])
+            
+            # 计算R2损失 - 只计算mask>0的部分
+            ss_res = torch.sum((regression[mask_bool] - reg[mask_bool]) ** 2)
+            ss_tot = torch.sum((regression[mask_bool] - regression[mask_bool].mean()) ** 2)
+            r2_loss = 1 - (ss_res / (ss_tot + 1e-8))
+            
+            # 组合高度损失
+            height_loss = l1_loss + l2_loss + (1 - r2_loss) * 10
+        else:
+            # 如果没有足够的样本，使用零损失
+            l1_loss = torch.tensor(0.0, device=reg.device)
+            l2_loss = torch.tensor(0.0, device=reg.device)
+            r2_loss = torch.tensor(0.0, device=reg.device)
+            height_loss = torch.tensor(0.0, device=reg.device)
 
+        # 总损失
+        loss = seg_loss + height_loss
+
+        # 计算指标
         f1_score = self.calculate_f1(logits, mask)
-        iou_score = self.calculaye_iou(logits, mask)
+        iou_score = self.calculate_iou(logits, mask)
+        
+        # 回归指标 - 只计算mask>0的部分
+        if mask_bool.sum() > 1:
+            mse = F.mse_loss(reg[mask_bool], regression[mask_bool])
+            mae = F.l1_loss(reg[mask_bool], regression[mask_bool])
+            
+            # 展平张量以计算R2 - 只计算mask>0的部分
+            reg_flat = reg[mask_bool].view(-1)
+            regression_flat = regression[mask_bool].view(-1)
+            
+            # 确保有足够的样本计算R2
+            if len(reg_flat) > 1:
+                r2 = self.calculate_r2(reg_flat, regression_flat)
+            else:
+                r2 = torch.tensor(0.0, device=reg.device)
+        else:
+            mse = torch.tensor(0.0, device=reg.device)
+            mae = torch.tensor(0.0, device=reg.device)
+            r2 = torch.tensor(0.0, device=reg.device)
 
-        mse = self.calculate_mse(reg, regression)
-        mae = self.calculate_mae(reg, regression)
-        # 计算r2之前需要先Expected both prediction and target to be 1D or 2D tensors
-        reg = reg.view(-1)
-        regression = regression.view(-1)
-        r2 = self.calculate_r2(reg, regression)
-
-        loss = loss_seg + loss_reg
-        self.log("test_seg_loss", loss_seg, prog_bar=True)
-        self.log("test_reg_loss", loss_reg, prog_bar=True)
-        self.log("test_loss", loss, prog_bar=True)
-
-        self.log("test_mse", mse, prog_bar=True)
-        self.log("test_mae", mae, prog_bar=True)
-        self.log("test_r2", r2, prog_bar=True)
-
-        self.log("test_f1", f1_score, prog_bar=True)
-        self.log("test_iou", iou_score, prog_bar=True)
+        # 记录损失和指标
+        self.log("test/seg_loss", seg_loss, prog_bar=True)
+        self.log("test/height_loss", height_loss, prog_bar=True)
+        self.log("test/total_loss", loss, prog_bar=True)
+        self.log("test/f1", f1_score, prog_bar=True)
+        self.log("test/iou", iou_score, prog_bar=True)
+        self.log("test/mse", mse, prog_bar=True)
+        self.log("test/mae", mae, prog_bar=True)
+        self.log("test/r2", r2, prog_bar=True)
+        self.log("test/height_max", reg[mask_bool].max() if mask_bool.any() else torch.tensor(0.0, device=reg.device), on_epoch=True, reduce_fx=torch.max)
         
         return loss
+
+    def _dice_loss(self, pred, target):
+        smooth = 1e-5
+        pred = torch.sigmoid(pred)
+        pred_flat = pred.view(-1)
+        target_flat = target.view(-1)
+        intersection = (pred_flat * target_flat).sum()
+        return 1 - ((2. * intersection + smooth) / (pred_flat.sum() + target_flat.sum() + smooth))
+
+    def _iou_loss(self, pred, target):
+        smooth = 1e-5
+        pred = torch.sigmoid(pred)
+        pred_flat = pred.view(-1)
+        target_flat = target.view(-1)
+        intersection = (pred_flat * target_flat).sum()
+        union = pred_flat.sum() + target_flat.sum() - intersection
+        return 1 - ((intersection + smooth) / (union + smooth))
 
     def configure_optimizers(self):
         optimizer = self.hparams.optimizer(params=self.trainer.model.parameters())
@@ -268,7 +451,7 @@ class MheadUNetLM(LightningModule):
                 "optimizer": optimizer,
                 "lr_scheduler": {
                     "scheduler": scheduler,
-                    "monitor": "val_f1",
+                    "monitor": "val/total_loss",
                     "interval": "epoch",
                     "frequency": 1,
                 },
@@ -288,7 +471,7 @@ class MheadUNetLM(LightningModule):
             self.net = torch.compile(self.net)
 
     def predict_step(self, batch, batch_idx):
-        patch, coords = batch                # coords是patch的坐标, [batch, 2]
-        logits, reg = self.net(patch)        # logits [batch, n_classes, h, w], reg [batch, 1, h, w]
-        logits = torch.argmax(logits, dim=1) # 将logits转换为分类结果, 运算结束后logits的维度为[batch, h, w]
-        return  (logits, reg), coords
+        patch, coords = batch
+        logits, reg = self.net(patch)
+        logits = torch.sigmoid(logits)
+        return (logits, reg), coords
