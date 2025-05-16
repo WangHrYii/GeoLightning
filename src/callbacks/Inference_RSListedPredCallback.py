@@ -104,4 +104,4 @@ class RSListedPredCallback(Callback):
         out_dataset.SetProjection(projection)
         out_dataset.GetRasterBand(1).WriteArray(result)
         out_dataset.FlushCache()
-        out_dataset = None
+        out_dataset = None 

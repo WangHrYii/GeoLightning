@@ -120,6 +120,4 @@ class PredictionCallback(pl.Callback):
         for i in range(c):
             dataset.GetRasterBand(i+1).WriteArray(array[..., i])
         
-        dataset.FlushCache()
-
-
+        dataset.FlushCache() 

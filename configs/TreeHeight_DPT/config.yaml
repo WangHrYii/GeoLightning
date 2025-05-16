@@ -13,8 +13,8 @@ train_data:
   scale: 1
   mask_values: [0, 1]
   batch_size: 64
-infra_data:
-  _target_: src.data.Infra_RSTiledPredDataset.RSTiledPredDatasetLD
+inference_data:
+  _target_: src.data.Inference_RSTiledPredDataset.RSTiledPredDatasetLD
   file_path: /mnt/data/TreeHeight/raster_1m_cropped.tif
   patch_size: 512
   overlap: 0.25
@@ -58,10 +58,10 @@ callbacks:
     stopping_threshold: null
     divergence_threshold: null
     check_on_train_epoch_end: null
-  infra_callback:
-    _target_: src.callbacks.Infra_RSTiledPredCallback.PredictionCallback
+  inference_callback:
+    _target_: src.callbacks.Inference_RSTiledPredCallback.PredictionCallback
     output_path: ${paths.output_dir}/prediction_results.tif
-    overlap: ${infra_data.overlap}   # 与数据集的overlap对应, ${} 用于引用其他配置, 便于修改
+    overlap: ${inference_data.overlap}   # 与数据集的overlap对应, ${} 用于引用其他配置, 便于修改
     task_names: ["height", "cover"]  # 与模型的多头输出对应
   model_summary:
     _target_: lightning.pytorch.callbacks.RichModelSummary
