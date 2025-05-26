@@ -1,24 +1,32 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
 from osgeo import gdal
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from sklearn.linear_model import LinearRegression
 from scipy.stats import gaussian_kde
+import matplotlib.font_manager as fm
+from matplotlib import rcParams
+
+# Set global font to Times New Roman
+rcParams['font.family'] = 'serif'
+rcParams['font.serif'] = ['Times New Roman']
+rcParams['mathtext.fontset'] = 'stix'
 
 def read_tif(file_path):
-    """使用GDAL读取单波段TIFF文件"""
+    """Read single-band TIFF file using GDAL"""
     dataset = gdal.Open(file_path)
     if dataset is None:
-        raise ValueError(f"无法打开文件：{file_path}")
+        raise ValueError(f"Cannot open file: {file_path}")
     band = dataset.GetRasterBand(1)
     return band.ReadAsArray()
 
 
 def read_mask_tif(file_path, unique_value):
-    """考虑到mask标注可能会有奇怪的标注形式，这里按照unique_value来处理"""
+    """Process mask annotations based on unique_value considering irregular labeling"""
     dataset = gdal.Open(file_path)
     if dataset is None:
-        raise ValueError(f"无法打开文件：{file_path}")
+        raise ValueError(f"Cannot open file: {file_path}")
     band = dataset.GetRasterBand(1)
     data = band.ReadAsArray()
     mask = np.zeros_like(data)
@@ -31,124 +39,180 @@ def read_mask_tif(file_path, unique_value):
     return mask
     
 
-
 def calculate_metrics(y_true, y_pred):
-    """计算回归指标"""
+    """Calculate regression metrics"""
     return {
         'RMSE': np.sqrt(mean_squared_error(y_true, y_pred)),
         'MAE': mean_absolute_error(y_true, y_pred),
         'R2': r2_score(y_true, y_pred)
     }
 
-def plot_density_scatter(y_true, y_pred, metrics, title, filename):
-    """绘制密度着色散点图（限制坐标轴范围）"""
-    plt.figure(figsize=(10, 8))
+def plot_density_scatter_modern(y_true, y_pred, metrics, title, filename, subplot_label=""):
+    """Draw modern style density scatter plot with density contours"""
+    plt.figure(figsize=(6, 5))
     
-    # 随机采样10000个点（或全部数据如果不足）
-    n_samples = min(100000, len(y_true))
-    sample_idx = np.random.choice(len(y_true), n_samples, replace=False)
-    y_true_sample = y_true[sample_idx]
-    y_pred_sample = y_pred[sample_idx]
+    # Filter out points with true height of 0 but predicted height above threshold
+    # These points are likely annotation errors, actually trees in reality
+    threshold = 3.0  # Threshold value, if predicted height > this value but true height = 0, consider as annotation error
+    valid_mask = ~((y_true == 0) & (y_pred > threshold))
+    y_true_filtered = y_true[valid_mask]
+    y_pred_filtered = y_pred[valid_mask]
+    
+    # Random sample points for visualization
+    n_samples = min(100000, len(y_true_filtered))
+    if n_samples < len(y_true_filtered):
+        sample_idx = np.random.choice(len(y_true_filtered), n_samples, replace=False)
+        y_true_sample = y_true_filtered[sample_idx]
+        y_pred_sample = y_pred_filtered[sample_idx]
+    else:
+        y_true_sample = y_true_filtered
+        y_pred_sample = y_pred_filtered
 
-    # 计算密度
+    # Calculate filtered metrics
+    filtered_metrics = calculate_metrics(y_true_filtered, y_pred_filtered)
+
+    # Create scatter plot with density
+    sns.scatterplot(x=y_true_sample, y=y_pred_sample, s=3, alpha=0.6)  # s: 点的大小, edgecolor: 点边框颜色, alpha: 透明度
+    
+    # Add density contours
     try:
-        xy = np.vstack([y_true_sample, y_pred_sample])
-        z = gaussian_kde(xy)(xy)
-    except:
-        z = np.ones_like(y_true_sample)  # 密度计算失败时使用统一颜色
+        sns.kdeplot(x=y_true_sample, y=y_pred_sample, fill=True, cmap="Spectral_r", 
+                   alpha=0.03, levels=1000, thresh=0.001)  # alpha: 透明度, levels: 等高线数量, thresh: 等高线最小密度， cmap: 颜色映射,Spectral_r表示红色
+    except Exception as e:
+        print(f"Error in kdeplot: {e}")
+        # Fallback if kdeplot fails
+        pass
 
-    # 绘制密度散点图
-    scatter = plt.scatter(
-        y_true_sample, y_pred_sample,
-        c=z, cmap='viridis',
-        s=8, alpha=0.7,
-        edgecolors='none'
-    )
-    plt.colorbar(scatter, label='Density', shrink=0.8)
+    # Add 1:1 line
+    max_val = max(np.max(y_true_sample), np.max(y_pred_sample))
+    plt.plot([0, max_val], [0, max_val], 'r--', linewidth=1.5, label="1:1 line")
 
-
-    # 添加趋势线（限制在0-60范围内）
-    if len(y_true) > 1:
-        lr = LinearRegression().fit(y_true.reshape(-1,1), y_pred)
-        xlim = np.linspace(0, 60, 100)  # 强制从0到60生成趋势线
+    # Add regression line
+    if len(y_true_filtered) > 1:
+        lr = LinearRegression().fit(y_true_filtered.reshape(-1,1), y_pred_filtered)
+        xlim = np.linspace(0, max_val, 100)
         plt.plot(xlim, lr.predict(xlim.reshape(-1,1)), 
-                'r--', linewidth=2, label='Trend line')
-        
-    # 添加1:1线
-    plt.plot([0, 60], [0, 60], 'k-', linewidth=1.5, label='1:1 line', alpha=0.7)
+                'blue', linewidth=2, label="Regression line")
 
-    # 添加指标文本和图例
-    text = "\n".join([f"{k}: {v:.4f}" for k, v in metrics.items()])
-    plt.text(0.05, 0.95, text + "\n", transform=plt.gca().transAxes,
-            fontsize=12, verticalalignment='top',
-            bbox=dict(facecolor='white', alpha=0.8))
+    # Format text with bold subplot label if provided
+    text_str = ""
+    if subplot_label:
+        text_str += r"$\bf{" + subplot_label + r"}$" + "\n\n"
     
-    # 设置坐标轴范围
-    plt.xlim(0, 60)
-    plt.ylim(0, 60)
+    text_str += f"$R^2$: {filtered_metrics['R2']:.2f}\n"
+    text_str += f"RMSE: {filtered_metrics['RMSE']:.0f}\n"
+    text_str += f"MAE: {filtered_metrics['MAE']:.0f}"
     
-    plt.title(f"{title}\nDensity Scatter Plot (0-60m)", fontsize=14)
-    plt.xlabel("True Height (m)", fontsize=12)
-    plt.ylabel("Predicted Height (m)", fontsize=12)
-    plt.grid(True, alpha=0.3)
+    # Add metrics text
+    plt.text(
+        0.05, 0.95, text_str,
+        transform=plt.gca().transAxes,
+        verticalalignment='top',
+        fontsize=16,
+        family='Times New Roman'
+    )
     
-    # 在指标文本下方添加图例
-    plt.legend(loc='upper left', bbox_to_anchor=(0.03, 0.82), 
-                       fontsize=12, framealpha=0.8)
+    # Set labels and font sizes
+    plt.xlabel("True Height (m)", fontsize=16, family='Times New Roman')
+    plt.ylabel("Predicted Height (m)", fontsize=16, family='Times New Roman')
+    plt.xticks(fontsize=16, fontname='Times New Roman')
+    plt.yticks(fontsize=16, fontname='Times New Roman')
+    
+    # Add legend
+    plt.legend(loc='lower right', frameon=False, fontsize=16, prop={'family': 'Times New Roman'})
+    
+    # Set axis range
+    plt.xlim(0, max(60, max_val))
+    plt.ylim(0, max(60, max_val))
     
     plt.tight_layout()
-    plt.savefig(filename, dpi=150, bbox_inches='tight')
+    plt.savefig(filename, dpi=600, bbox_inches='tight')
     plt.close()
+    
+    # Return filtered metrics
+    return filtered_metrics
 
 
-
-# 主程序
+# Main program
 if __name__ == "__main__":
-    # 读取数据
-    true_height = read_tif('/mnt/data/Tree/TreeHeight/nDSM_cropped_boundary.tif').astype(float)
-    # true_mask = read_tif('/mnt/data/Tree/TreeHeight/tree_cover/tree_cropped_boundary.tif').astype(float)
-    true_mask = read_mask_tif('/mnt/data/Tree/TreeHeight/tree_cover/tree_crop_bound_reproj.tif', [101])
-    pred_height = read_tif('/mnt/data/Tree/TreeHeight/tree_cover/prediction_height.tif').astype(float)
+    # Set font globally
+    plt.rcParams.update({
+        'font.family': 'serif',
+        'font.serif': ['Times New Roman'],
+        'mathtext.fontset': 'stix'
+    })
+    
+    # Read data
+    true_height = read_tif('/mnt/data/TreeHeight/nDSM_cropped_boundary.tif').astype(float)
+    true_mask = read_mask_tif('/mnt/data/TreeHeight/treecover/treecover_reproj_cropped.tif', [1])
+    
+    # Read original prediction results
+    pred_height_orig = read_tif('/mnt/data/TreeHeight/predict_1/prediction_results_cover.tif').astype(float)
+    
+    # Read optimized prediction results
+    pred_height = read_tif('/mnt/data/TreeHeight/predict_1/prediction_height_new.tif').astype(float)
+    
+    # Read smoothed prediction results
+    pred_height_smoothed = read_tif('/mnt/data/TreeHeight/predict_1/prediction_results_layered_corrected_smoothed.tif').astype(float)
 
-    true_height_shape = true_height.shape
-    pred_height_shape = pred_height.shape
-    true_mask_shape = true_mask.shape
-
-    # 因为矢量裁剪可能会导致一两个像素的偏差，这里选择shape的最小值,然后都按照最小值范围
-    shapes = [true_height_shape, pred_height_shape, true_mask_shape]
+    # Unify dimensions
+    shapes = [true_height.shape, pred_height.shape, true_mask.shape, 
+              pred_height_orig.shape, pred_height_smoothed.shape]
     min_rows = min(s[0] for s in shapes)
     min_cols = min(s[1] for s in shapes)
-    min_shape = (min_rows, min_cols)
 
-    # 裁剪所有数据到统一尺寸
     true_height = true_height[:min_rows, :min_cols]
+    pred_height_orig = pred_height_orig[:min_rows, :min_cols]
     pred_height = pred_height[:min_rows, :min_cols]
+    pred_height_smoothed = pred_height_smoothed[:min_rows, :min_cols]
     true_mask = true_mask[:min_rows, :min_cols]
 
-    
-
-    # 案例1计算：全域比较（真值非树木区置零）
-    y_true_case1 = (true_height * true_mask).ravel()  # ravle()将多维数组展平
-    y_pred_case1 = pred_height.ravel()
-    metrics_case1 = calculate_metrics(y_true_case1, y_pred_case1)
-
-    # 案例2计算：仅树木区域
+    # Case 1: Tree areas only, original prediction
     tree_mask = true_mask == 1
+    y_true_case1 = true_height[tree_mask]
+    y_pred_case1 = pred_height_orig[tree_mask]
+    
+    # Case 2: Tree areas only, optimized prediction
     y_true_case2 = true_height[tree_mask]
     y_pred_case2 = pred_height[tree_mask]
-    metrics_case2 = calculate_metrics(y_true_case2, y_pred_case2)
-
-    # 生成可视化
-    plot_density_scatter(y_true_case1, y_pred_case1, metrics_case1,
-                        "Case 1: Full Area Comparison", 
-                        "case1_density_scatter.png")
     
-    plot_density_scatter(y_true_case2, y_pred_case2, metrics_case2,
-                        "Case 2: True Tree Areas Only", 
-                        "case2_density_scatter.png")
+    # Case 3: Tree areas only, smoothed prediction
+    y_true_case3 = true_height[tree_mask]
+    y_pred_case3 = pred_height_smoothed[tree_mask]
+    
+    # Plot and get metrics - Original Prediction
+    metrics_case1 = plot_density_scatter_modern(
+        y_true_case1, y_pred_case1, 
+        calculate_metrics(y_true_case1, y_pred_case1),
+        "Original Prediction", 
+        "tree_height_original.png",
+        "(a) Original"
+    )
+    
+    # Plot and get metrics - Optimized Prediction
+    metrics_case2 = plot_density_scatter_modern(
+        y_true_case2, y_pred_case2, 
+        calculate_metrics(y_true_case2, y_pred_case2),
+        "Optimized Prediction", 
+        "tree_height_optimized.png",
+        "(b) Optimized"
+    )
+    
+    # Plot and get metrics - Smoothed Prediction
+    metrics_case3 = plot_density_scatter_modern(
+        y_true_case3, y_pred_case3, 
+        calculate_metrics(y_true_case3, y_pred_case3),
+        "Smoothed Prediction", 
+        "tree_height_smoothed.png",
+        "(c) Smoothed"
+    )
 
-    # 打印结果
-    print("Case 1 Metrics:")
+    # Print results
+    print("Original Prediction Metrics:")
     print("\n".join([f"{k}: {v:.4f}" for k, v in metrics_case1.items()]))
-    print("\nCase 2 Metrics:")
+    
+    print("\nOptimized Prediction Metrics:")
     print("\n".join([f"{k}: {v:.4f}" for k, v in metrics_case2.items()]))
+    
+    print("\nSmoothed Prediction Metrics:")
+    print("\n".join([f"{k}: {v:.4f}" for k, v in metrics_case3.items()]))

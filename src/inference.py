@@ -38,7 +38,7 @@ log = RankedLogger(__name__, rank_zero_only=True)
 
 
 @task_wrapper
-def infra(cfg: DictConfig) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+def inference(cfg: DictConfig) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     """Evaluates given checkpoint on a datamodule testset.
 
     This method is wrapped in optional @task_wrapper decorator, that controls the behavior during
@@ -49,8 +49,8 @@ def infra(cfg: DictConfig) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     """
     assert cfg.ckpt_path
 
-    log.info(f"Instantiating datamodule <{cfg.infra_data._target_}>")
-    datamodule: LightningDataModule = hydra.utils.instantiate(cfg.infra_data)
+    log.info(f"Instantiating datamodule <{cfg.inference_data._target_}>")
+    datamodule: LightningDataModule = hydra.utils.instantiate(cfg.inference_data)
 
     log.info(f"Instantiating model <{cfg.model._target_}>")
     model: LightningModule = hydra.utils.instantiate(cfg.model)
@@ -76,7 +76,7 @@ def infra(cfg: DictConfig) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         log.info("Logging hyperparameters!")
         log_hyperparameters(object_dict)
 
-    log.info("Starting infra!")
+    log.info("Starting inference!")
     
     trainer.predict(model, datamodule=datamodule, ckpt_path=cfg.ckpt_path)
 
@@ -91,7 +91,7 @@ def main(cfg: DictConfig) -> None:
     # (e.g. ask for tags if none are provided in cfg, print cfg tree, etc.)
     extras(cfg)
 
-    infra(cfg)
+    inference(cfg)
 
 
 if __name__ == "__main__":

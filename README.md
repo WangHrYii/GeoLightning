@@ -46,7 +46,7 @@ GeoLightning/
 │   ├── preprocess/              # 数据预处理
 │   ├── utils/                   # 工具函数
 │   ├── eval.py                  # 评估入口
-│   ├── infra.py                 # 基础设施
+│   ├── inference.py             # 推理
 │   └── train.py                 # 训练入口
 ├── tools/                       # 辅助工具脚本
 ├── tests/                       # 测试套件

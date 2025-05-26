@@ -149,5 +149,4 @@ class RSTiledPredDatasetLD(LightningDataModule):
         """自定义批次组装"""
         patches = torch.stack([item[0] for item in batch])
         coords = [item[1] for item in batch]
-        return patches, coords
-
+        return patches, coords 
