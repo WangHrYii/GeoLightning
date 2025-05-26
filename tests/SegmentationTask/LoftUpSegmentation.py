@@ -162,9 +162,9 @@ class LoftUpSegmentation(LoftUpBase):
         
         # 记录指标
         self.log('train_loss_step', loss, prog_bar=True)
-        self.log('train_acc_step', metrics['acc'], prog_bar=True)
-        self.log('train_mf1_step', metrics['mf1'], prog_bar=True)
-        self.log('train_iou_step', metrics['iou'], prog_bar=True)
+        self.log('train_acc_step', metrics['acc'])
+        self.log('train_mf1_step', metrics['mf1'])
+        self.log('train_iou_step', metrics['iou'])
         
         # 保存结果用于epoch结束时的处理
         self.train_step_outputs.append({
@@ -183,9 +183,9 @@ class LoftUpSegmentation(LoftUpBase):
         
         # 记录指标
         self.log('val_loss_step', loss, prog_bar=True)
-        self.log('val_acc_step', metrics['acc'], prog_bar=True)
-        self.log('val_mf1_step', metrics['mf1'], prog_bar=True)
-        self.log('val_iou_step', metrics['iou'], prog_bar=True)
+        self.log('val_acc_step', metrics['acc'])
+        self.log('val_mf1_step', metrics['mf1'])
+        self.log('val_iou_step', metrics['iou'])
         
         # 保存结果用于epoch结束时的处理
         self.val_step_outputs.append({
@@ -306,11 +306,11 @@ class LoftUpSegmentation(LoftUpBase):
             # 添加标题
             draw = ImageDraw.Draw(combined)
             try:
-                font = ImageFont.truetype("Arial.ttf", 14)
+                font = ImageFont.truetype("Arial.ttf", 20)
             except IOError:
                 font = ImageFont.load_default()
             
-            titles = ["Original Image", "High-Res Features", "Predictions", "Targets"]
+            titles = ["Image", "HR Feature", "Prediction", "Mask"]
             for j, title in enumerate(titles):
                 x = margin * (j + 1) + width * j + width//2 - 40
                 draw.text((x, 5), title, fill=(0, 0, 0), font=font)

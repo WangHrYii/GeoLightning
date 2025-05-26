@@ -5,24 +5,23 @@ tags:
 train: true
 test: true
 seed: 42
-data:
-  train_data:
-    _target_: src.data.Potsdam.PotsdamDatasetLD
-    root_dir: /mnt/f/data/ISPRS semantic label data/Potsdam/processed
-    batch_size: 2
-    num_workers: 4
-    max_train_samples: 100
-    max_test_samples: 20
-    vfm_size: 224
-    original_size: 1024
-    normalize: true
+train_data:
+  _target_: src.data.Potsdam.PotsdamDatasetLD
+  root_dir: /mnt/f/data/ISPRS semantic label data/Potsdam/processed
+  batch_size: 2
+  num_workers: 4
+  max_train_samples: 10
+  max_test_samples: 2
+  vfm_size: 224
+  original_size: 1024
+  normalize: true 
 model:
   _target_: tests.SegmentationTask.LoftUpSegmentation.LoftUpSegmentation
   vfm_model_name: vits
   vfm_checkpoint_path: /root/GeoLightning/ckpt/dinov2_vits14_pretrain.pth
   loftup_checkpoint_path: /root/GeoLightning/ckpt/loftup_dinov2s.ckpt
   feature_dim: 384
-  classifier_dims: [256, 128]
+  classifier_dims: [128]
   dropout_rate: 0.2
   num_classes: 6 
   optimizer:
@@ -34,7 +33,7 @@ logger:
   wandb:
     _target_: lightning.pytorch.loggers.WandbLogger
     project: LoftUp
-    name: loftup_lr${model.optimizer.lr}_batch${data.train_data.batch_size}_time${now:%Y%m%d_%H%M%S}
+    name: loftup_lr${model.optimizer.lr}_batch${train_data.batch_size}_time${now:%Y%m%d_%H%M%S}
     save_dir: ${paths.log_dir}/classification_test
     log_model: true
 trainer:
@@ -46,6 +45,8 @@ trainer:
   devices: 1
   check_val_every_n_epoch: 1
   deterministic: false
+  precision: 16-mixed
+  val_check_interval: 1.0
 
 paths:
   root_dir: ${oc.env:PROJECT_ROOT}

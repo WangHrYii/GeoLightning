@@ -54,7 +54,7 @@ def train(cfg: DictConfig) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     logger: List[Logger] = instantiate_loggers(cfg.get("logger"))
 
     log.info(f"Instantiating trainer <{cfg.trainer._target_}>")
-    trainer: Trainer = hydra.utils.instantiate(cfg.trainer, callbacks=callbacks, logger=logger, precision=cfg.trainer.precision)
+    trainer: Trainer = hydra.utils.instantiate(cfg.trainer, callbacks=callbacks, logger=logger, _convert_="partial")
 
     object_dict = {
         "cfg": cfg,

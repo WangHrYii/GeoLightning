@@ -65,20 +65,20 @@ class PotsdamDataset(Dataset):
         self.mask_files.sort()
         
         # 创建用于构建转换流程的函数
-        def create_transform(target_size: int, is_mask: bool = False) -> T.Compose:
+        def create_transform(target_size: int, is_vfm: bool = False) -> T.Compose:
             transforms = [
                 T.Resize((target_size, target_size), 
-                        interpolation=T.InterpolationMode.NEAREST if is_mask else T.InterpolationMode.BICUBIC),
+                        interpolation=T.InterpolationMode.NEAREST if is_vfm else T.InterpolationMode.BICUBIC),
                 T.ToTensor()
             ]
-            if normalize and not is_mask:
+            if normalize and  is_vfm:
                 transforms.append(T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]))
             return T.Compose(transforms)
         
         # 应用转换函数创建两种尺寸的转换
-        self.vfm_transform = create_transform(self.vfm_size)
+        self.vfm_transform = create_transform(self.vfm_size, is_vfm=True)
         self.original_transform = create_transform(self.original_size)
-        self.mask_transform = create_transform(self.vfm_size, is_mask=True)
+        self.mask_transform = create_transform(self.vfm_size)
     
     def __len__(self) -> int:
         return len(self.img_files)
@@ -196,6 +196,10 @@ class PotsdamDatasetLD(LightningDataModule):
             num_workers=self.num_workers,   
             pin_memory=True
         )
+        
+    def val_dataloader(self):
+        """使用test_dataloader作为验证集"""
+        return self.test_dataloader()
 
 if __name__ == "__main__":
     # 测试数据集加载
