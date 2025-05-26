@@ -76,10 +76,10 @@ def print_config_tree(
 
 @rank_zero_only
 def enforce_tags(cfg: DictConfig, save_to_file: bool = False) -> None:
-    """Prompts user to input tags from command line if no tags are provided in config.
+    """如果配置中没有提供标签，则提示用户从命令行输入标签。
 
-    :param cfg: A DictConfig composed by Hydra.
-    :param save_to_file: Whether to export tags to the hydra output folder. Default is ``False``.
+    :param cfg: 由 Hydra 生成的 DictConfig。
+    :param save_to_file: 是否将标签导出到 hydra 输出文件夹。默认是 ``False``.
     """
     if not cfg.get("tags"):
         if "id" in HydraConfig().cfg.hydra.job:

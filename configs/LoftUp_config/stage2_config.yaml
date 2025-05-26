@@ -1,0 +1,146 @@
+task_name: FeatureUpsampling
+tags:
+  - loftup
+  - feature_upsampling
+
+# 控制配置
+control:
+  run_stage1: true                       # 是否运行第一阶段训练
+  run_stage2: true                       # 是否运行第二阶段训练
+  stage1_checkpoint: null                # 第一阶段检查点路径，如果不为 null，则跳过第一阶段训练
+  stage2_checkpoint: null                # 第二阶段检查点路径，如果不为 null，则跳过第二阶段训练
+  seed: 42                               # 随机种子
+
+# 数据配置
+data:
+  _target_: src.data.LoveDA.LoveDADataset
+  root_dir: "/mnt/f/data/高分辨率数据集/LoveDA"       # 数据集根目录
+  batch_size: 2                          # 批次大小
+  num_workers: 4                         # 数据加载工作线程数
+  max_train_samples: null                # 最大训练样本数，null表示使用所有样本
+  max_val_samples: null                  # 最大验证样本数，null表示使用所有样本
+  vfm_image_size: 224                    # VFM输入图像大小
+  original_image_size: 1024              # 原始图像大小
+
+# 模型配置
+model:
+  _target_: src.models.FeatureUpsampling.upsamplers.LoftUp.LoftUpStage1Trainer
+  base_model:
+    type: "dinov2"
+    name: "dinov2_vits14"
+    source: "facebookresearch/dinov2"
+    sam2_cfg: "/root/GeoLightning/configs/sam2_configs/sam2.1_hiera_s.yaml"
+  # 上采样器配置
+  upsampler:
+    _target_: src.models.FeatureUpsampling.upsamplers.LoftUp
+    dim: 384                                # 特征维度
+    lr_pe_type: "sine"                      # 位置编码类型：sine 或 learnable
+    alpha: 0.8                              # 掩码优化系数
+  optimizer:
+    _target_: torch.optim.Adam
+    _partial_: true
+    lr: 1e-3  
+    weight_decay: 1e-4 
+
+
+
+
+# 第二阶段训练配置
+stage2:
+  lr: 1e-4                               # 学习率
+  weight_decay: 1e-4                     # 权重衰减
+  epochs: 1                             # 训练轮数
+  ema_decay: 0.99                        # EMA衰减率
+  ema_update_freq: 10                    # EMA更新频率
+  scale_factor: 4                        # 教师分支图像缩放倍数
+  teacher_crops: 2                       # 教师分支裁剪块数量
+  mask_cache_dir: "temp_masks/stage2"    # 掩码缓存目录
+  sam_params:                            # SAM掩码参数
+    points_per_side: 32
+    pred_iou_thresh: 0.8
+    stability_score_thresh: 0.8
+    crop_n_layers: 1
+    crop_nms_thresh: 0.7
+    crop_overlap_ratio: 0.2
+    crop_n_points_downscale_factor: 2
+    min_mask_region_area: 100
+
+# 训练配置
+training:
+  early_stopping_patience: 15
+  gradient_clip_val: 0.5  # 梯度裁剪
+
+# 输出配置
+output:
+  output_dir: "./outputs"
+  experiment_name: null  # 在代码中动态生成
+
+# 日志配置
+logger:
+  wandb:
+    _target_: lightning.pytorch.loggers.WandbLogger
+    project: "tree_height_unet"
+    # 设置name和学习率以及一些其他的参数
+    name: lr:${model.optimizer.lr}_batch:${data.train_data.batch_size}
+    save_dir: ${paths.log_dir}
+    log_model: false
+
+# trainer配置
+stage1_trainer:
+  accelerator: "gpu"
+  devices: 1
+  precision: "32-true"
+  log_every_n_steps: 10
+
+stage2_trainer:
+  accelerator: "gpu"
+  devices: 1
+  precision: "32-true"
+  log_every_n_steps: 10
+
+# 路径配置
+paths:
+  root_dir: ${oc.env:PROJECT_ROOT}
+  data_dir: ${paths.root_dir}/data/
+  log_dir: ${paths.root_dir}/logs/
+  output_dir: ${hydra:runtime.output_dir}
+  work_dir: ${hydra:runtime.cwd}
+
+# 额外配置
+extras:
+  ignore_warnings: true
+  enforce_tags: true
+  print_config: true
+
+# 回调函数配置
+callbacks:
+  model_checkpoint:
+    _target_: lightning.pytorch.callbacks.ModelCheckpoint
+    dirpath: ${paths.output_dir}/checkpoints
+    filename: epoch_{epoch:03d}
+    monitor: val_loss
+    verbose: false
+    save_last: true
+    save_top_k: 3
+    mode: min
+    auto_insert_metric_name: false
+    save_weights_only: true
+  
+  early_stopping:
+    _target_: lightning.pytorch.callbacks.EarlyStopping
+    monitor: val_loss
+    min_delta: 0.0
+    patience: ${training.early_stopping_patience}
+    verbose: false
+    mode: min
+  
+  lr_monitor:
+    _target_: lightning.pytorch.callbacks.LearningRateMonitor
+    logging_interval: epoch
+  
+  model_summary:
+    _target_: lightning.pytorch.callbacks.RichModelSummary
+    max_depth: -1
+  
+  rich_progress_bar:
+    _target_: lightning.pytorch.callbacks.RichProgressBar

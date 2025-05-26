@@ -10,25 +10,7 @@ from lightning.pytorch.loggers import Logger
 from omegaconf import DictConfig
 import torch.optim.lr_scheduler
 
-
 rootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)  # 作用是将项目根目录添加到PYTHONPATH中，这样就可以直接import项目中的模块了
-# ------------------------------------------------------------------------------------ #
-# the setup_root above is equivalent to:
-# - adding project root dir to PYTHONPATH
-#       (so you don't need to force user to install project as a package)
-#       (necessary before importing any local modules e.g. `from src import utils`)
-# - setting up PROJECT_ROOT environment variable
-#       (which is used as a base for paths in "configs/paths/default.yaml")
-#       (this way all filepaths are the same no matter where you run the code)
-# - loading environment variables from ".env" in root dir
-#
-# you can remove it if you:
-# 1. either install project as a package or move entry files to project root dir
-# 2. set `root_dir` to "." in "configs/paths/default.yaml"
-#
-# more info: https://github.com/ashleve/rootutils
-# ------------------------------------------------------------------------------------ #
-
 from src.utils import (
     RankedLogger,              # 用于记录日志
     extras,                    # 用于处理额外的配置
@@ -38,12 +20,9 @@ from src.utils import (
     log_hyperparameters,       # 用于记录超参数
     task_wrapper,              # 用于装饰任务，经过装饰的任务
 )
+# from src.models.FeatureUpsampling.LoftUp import LoftUpStage1Trainer
 
-from src.models.ClassificationTask.SwinMLP import SwinClassifier
-
-print("SwinMLP.py loaded")
-
-log = RankedLogger(__name__, rank_zero_only=True)
+log = RankedLogger(__name__, rank_zero_only=True) # rank_zero_only=True 表示只有rank为0的进程才会记录日志
 
 
 @task_wrapper
@@ -112,7 +91,7 @@ def train(cfg: DictConfig) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     return metric_dict, object_dict
 
 
-@hydra.main(version_base="1.3", config_path="../configs/debug", config_name="config.yaml")  # 通过hydra.main装饰器指定配置文件的路径和名称，返回配置后的字典
+@hydra.main(version_base="1.3", config_path="../configs/LoftUp_config", config_name="segmentation_test.yaml")  # 通过hydra.main装饰器指定配置文件的路径和名称，返回配置后的字典
 def main(cfg: DictConfig) -> Optional[float]:
     """Main entry point for training.
 

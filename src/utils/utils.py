@@ -10,12 +10,12 @@ log = pylogger.RankedLogger(__name__, rank_zero_only=True)
 
 
 def extras(cfg: DictConfig) -> None:
-    """Applies optional utilities before the task is started.
-
-    Utilities:
-        - Ignoring python warnings
-        - Setting tags from command line
-        - Rich config printing
+    """在任务启动前应用可选的实用工具，它接收一个 Hydra 生成的 DictConfig 对象，
+    并根据配置文件中的 extras 部分进行一些额外的处理。
+    实用工具包括：
+        - 忽略 Python 警告
+        - 从命令行获取标签
+        - 使用 Rich 库打印配置树
 
     :param cfg: A DictConfig object containing the config tree.
     """
@@ -29,7 +29,7 @@ def extras(cfg: DictConfig) -> None:
         log.info("Disabling python warnings! <cfg.extras.ignore_warnings=True>")
         warnings.filterwarnings("ignore")
 
-    # prompt user to input tags from command line if none are provided in the config
+    # 如果配置中没有提供标签，则提示用户从命令行输入标签
     if cfg.extras.get("enforce_tags"):
         log.info("Enforcing tags! <cfg.extras.enforce_tags=True>")
         rich_utils.enforce_tags(cfg, save_to_file=True)

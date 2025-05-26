@@ -1,0 +1,86 @@
+task_name: loftup_segmentation_test
+tags:
+- loftup
+- segmentation
+train: true
+test: true
+seed: 42
+data:
+  train_data:
+    _target_: src.data.Potsdam.PotsdamDatasetLD
+    root_dir: /mnt/f/data/ISPRS semantic label data/Potsdam/processed
+    batch_size: 2
+    num_workers: 4
+    max_train_samples: 100
+    max_test_samples: 20
+    vfm_size: 224
+    original_size: 1024
+    normalize: true
+model:
+  _target_: tests.SegmentationTask.LoftUpSegmentation.LoftUpSegmentation
+  vfm_model_name: vits
+  vfm_checkpoint_path: /root/GeoLightning/ckpt/dinov2_vits14_pretrain.pth
+  loftup_checkpoint_path: /root/GeoLightning/ckpt/loftup_dinov2s.ckpt
+  feature_dim: 384
+  classifier_dims: [256, 128]
+  dropout_rate: 0.2
+  num_classes: 6 
+  optimizer:
+    _target_: torch.optim.AdamW
+    _partial_: true
+    lr: 0.001
+    weight_decay: 0.0001
+logger:
+  wandb:
+    _target_: lightning.pytorch.loggers.WandbLogger
+    project: LoftUp
+    name: loftup_lr${model.optimizer.lr}_batch${data.train_data.batch_size}_time${now:%Y%m%d_%H%M%S}
+    save_dir: ${paths.log_dir}/classification_test
+    log_model: true
+trainer:
+  _target_: lightning.pytorch.trainer.Trainer
+  default_root_dir: ${paths.output_dir}
+  min_epochs: 5
+  max_epochs: 10
+  accelerator: gpu
+  devices: 1
+  check_val_every_n_epoch: 1
+  deterministic: false
+
+paths:
+  root_dir: ${oc.env:PROJECT_ROOT}
+  data_dir: ${paths.root_dir}/data/
+  log_dir: ${paths.root_dir}/logs/
+  output_dir: ${hydra:runtime.output_dir}
+  work_dir: ${hydra:runtime.cwd}
+extras:
+  ignore_warnings: true
+  enforce_tags: true
+  print_config: true
+callbacks:
+  model_checkpoint:
+    _target_: lightning.pytorch.callbacks.ModelCheckpoint
+    dirpath: ${paths.output_dir}/checkpoints
+    filename: epoch_{epoch:03d}
+    monitor: val_loss
+    verbose: false
+    save_last: true
+    save_top_k: 3
+    mode: min
+    auto_insert_metric_name: false
+    save_weights_only: true
+  early_stopping:
+    _target_: lightning.pytorch.callbacks.EarlyStopping
+    monitor: val_loss
+    min_delta: 0.0
+    patience: 10
+    verbose: false
+    mode: min
+  lr_monitor:
+    _target_: lightning.pytorch.callbacks.LearningRateMonitor
+    logging_interval: epoch
+  model_summary:
+    _target_: lightning.pytorch.callbacks.RichModelSummary
+    max_depth: -1
+  rich_progress_bar:
+    _target_: lightning.pytorch.callbacks.RichProgressBar
