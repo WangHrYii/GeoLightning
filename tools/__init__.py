@@ -1,1 +1,1 @@
-from .shp2coco import TifwithShape2COCO
+# from .shp2coco import TifwithShape2COCO

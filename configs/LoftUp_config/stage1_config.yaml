@@ -1,0 +1,98 @@
+task_name: FeatureUpsampling
+tags:
+- loftup
+- feature_upsampling
+train: true
+test: false
+seed: 42
+data:
+  train_data:
+    _target_: src.data.LoveDA.LoveDADatasetLD
+    root_dir: /mnt/f/data/高分辨率数据集/LoveDA
+    split: train
+    batch_size: 2
+    num_workers: 4
+    max_train_samples: 100
+    max_val_samples: 20
+    vfm_size: 224
+    original_size: 1024
+    normalize: false
+model:
+  _target_: src.models.FeatureUpsampling.LoftUp.LoftUpStage1Trainer
+  alpha: 0.8
+  vfm_input_size: 224
+  original_img_size: 1024
+  vfm_model:
+    _target_: src.models.FeatureUpsampling.dinov2_feature.DINOv2FeatureExtractor
+    model_name: vits
+    checkpoint_path: /root/GeoLightning/ckpt/dinov2_vits14_pretrain.pth
+  sam_model:
+    _target_: src.models.FeatureUpsampling.SAM_mask.SAMMaskProcessor
+    sam_config: ../../configs/sam2_configs/sam2.1_hiera_s.yaml
+    sam_checkpoint: /root/GeoLightning/ckpt/sam2.1_hiera_small.pt
+    mask_cache_dir: /root/GeoLightning/ckpt/temp_masks
+    experiment_name: stage1
+    vfm_input_size: 224
+  upsampler:
+    _target_: src.models.FeatureUpsampling.upsamplers.LoftUp
+    dim: 384
+    lr_pe_type: sine
+  optimizer:
+    _target_: torch.optim.Adam
+    _partial_: true
+    lr: 0.001
+    weight_decay: 0.0001
+logger:
+  wandb:
+    _target_: lightning.pytorch.loggers.WandbLogger
+    project: LoftUp
+    name: loftup_lr${model.optimizer.lr}_batch${data.train_data.batch_size}_time${now:%Y%m%d_%H%M%S}
+    save_dir: ${paths.log_dir}
+    log_model: false
+trainer:
+  _target_: lightning.pytorch.trainer.Trainer
+  default_root_dir: ${paths.output_dir}
+  min_epochs: 5
+  max_epochs: 10
+  accelerator: gpu
+  devices: 1
+  check_val_every_n_epoch: 1
+  deterministic: false
+
+paths:
+  root_dir: ${oc.env:PROJECT_ROOT}
+  data_dir: ${paths.root_dir}/data/
+  log_dir: ${paths.root_dir}/logs/
+  output_dir: ${hydra:runtime.output_dir}
+  work_dir: ${hydra:runtime.cwd}
+extras:
+  ignore_warnings: true
+  enforce_tags: true
+  print_config: true
+callbacks:
+  model_checkpoint:
+    _target_: lightning.pytorch.callbacks.ModelCheckpoint
+    dirpath: ${paths.output_dir}/checkpoints
+    filename: epoch_{epoch:03d}
+    monitor: val_loss
+    verbose: false
+    save_last: true
+    save_top_k: 3
+    mode: min
+    auto_insert_metric_name: false
+    save_weights_only: true
+  early_stopping:
+    _target_: lightning.pytorch.callbacks.EarlyStopping
+    monitor: val_loss
+    min_delta: 0.0
+    patience: 10
+    verbose: false
+    mode: min
+  lr_monitor:
+    _target_: lightning.pytorch.callbacks.LearningRateMonitor
+    logging_interval: epoch
+  model_summary:
+    _target_: lightning.pytorch.callbacks.RichModelSummary
+    max_depth: -1
+  rich_progress_bar:
+    _target_: lightning.pytorch.callbacks.RichProgressBar

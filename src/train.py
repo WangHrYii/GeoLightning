@@ -10,9 +10,8 @@ from lightning.pytorch.loggers import Logger
 from omegaconf import DictConfig
 import torch.optim.lr_scheduler
 
+
 rootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)  # 作用是将项目根目录添加到PYTHONPATH中，这样就可以直接import项目中的模块了
-
-
 from src.utils import (
     RankedLogger,              # 用于记录日志
     extras,                    # 用于处理额外的配置
@@ -22,8 +21,9 @@ from src.utils import (
     log_hyperparameters,       # 用于记录超参数
     task_wrapper,              # 用于装饰任务，经过装饰的任务
 )
+# from src.models.FeatureUpsampling.LoftUp import LoftUpStage1Trainer
 
-log = RankedLogger(__name__, rank_zero_only=True)
+log = RankedLogger(__name__, rank_zero_only=True) # rank_zero_only=True 表示只有rank为0的进程才会记录日志
 
 
 @task_wrapper
@@ -54,7 +54,7 @@ def train(cfg: DictConfig) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     logger: List[Logger] = instantiate_loggers(cfg.get("logger"))
 
     log.info(f"Instantiating trainer <{cfg.trainer._target_}>")
-    trainer: Trainer = hydra.utils.instantiate(cfg.trainer, callbacks=callbacks, logger=logger, precision=cfg.trainer.precision)
+    trainer: Trainer = hydra.utils.instantiate(cfg.trainer, callbacks=callbacks, logger=logger, _convert_="partial")
 
     object_dict = {
         "cfg": cfg,
@@ -92,7 +92,7 @@ def train(cfg: DictConfig) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     return metric_dict, object_dict
 
 
-@hydra.main(version_base="1.3", config_path="/home/whr/Codes/GeoLightning/configs/TreeHeight_Unet", config_name="config.yaml")  # 通过hydra.main装饰器指定配置文件的路径和名称，返回配置后的字典
+@hydra.main(version_base="1.3", config_path="/home/whr/Codes/GeoLightning/configs/TreeHeight_DPT", config_name="config.yaml")  # 通过hydra.main装饰器指定配置文件的路径和名称，返回配置后的字典
 def main(cfg: DictConfig) -> Optional[float]:
     """Main entry point for training.
 

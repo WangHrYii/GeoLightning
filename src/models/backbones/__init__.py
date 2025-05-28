@@ -42,3 +42,12 @@ from src.models.backbones.bricks import (
     DynamicConv2d, AdptivePaddingConv2d, SqueezeExcitationConv2d, DepthwiseSeparableConv2d, InvertedResidual, InvertedResidualV3,
     DropoutBuilder, ActivationBuilder, NormalizationBuilder
 )
+
+from .loft import LoftUp, apply_mask_optimization, load_loftup_checkpoint, get_upsampler
+
+__all__ = [
+    'LoftUp',
+    'apply_mask_optimization',
+    'load_loftup_checkpoint',
+    'get_upsampler'
+]
