@@ -92,7 +92,7 @@ def train(cfg: DictConfig) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     return metric_dict, object_dict
 
 
-@hydra.main(version_base="1.3", config_path="/home/whr/Codes/GeoLightning/configs/TreeHeight_DPT", config_name="config.yaml")  # 通过hydra.main装饰器指定配置文件的路径和名称，返回配置后的字典
+@hydra.main(version_base="1.3", config_path="/home/whr/Codes/GeoLightning/configs/TreeHeight_Unet", config_name="config.yaml")  # 通过hydra.main装饰器指定配置文件的路径和名称，返回配置后的字典
 def main(cfg: DictConfig) -> Optional[float]:
     """Main entry point for training.
 
