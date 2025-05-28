@@ -203,14 +203,16 @@ def get_bands_batch(tif_folder, band_list, save_folder):
 
 
 if __name__ == '__main__':
-    target_tif_path = '/mnt/data/TreeHeight/nDSM_cropped_boundary.tif'
-    shapefile_path = '/mnt/data/TreeHeight/pic4Draw.gdb'
-    reprojected_gdf = reproject_shapefile(shapefile_path, target_tif_path)
+    # target_tif_path = '/mnt/data/TreeHeight/nDSM_cropped_boundary.tif'
+    # shapefile_path = '/mnt/data/TreeHeight/pic4Draw.gdb'
+    # reprojected_gdf = reproject_shapefile(shapefile_path, target_tif_path)
     # 保存为GDB文件
     # 由于FileGDB驱动不支持，需要先安装GDAL和fiona库的FileGDB支持
     # 可以通过以下命令安装:
     # conda install -c conda-forge gdal fiona
     # 或者使用其他格式如GeoPackage作为替代
-    reprojected_gdf.to_file('/mnt/data/TreeHeight/pic4Draw_reprojected.gpkg', driver='GPKG')
+    # reprojected_gdf.to_file('/mnt/data/TreeHeight/pic4Draw_reprojected.gpkg', driver='GPKG')
+    reprojected_gdf = reproject_shapefile('/mnt/data/TreeHeight/SplitDataShp/SplitDataShp/SplitDataShp/dc.shp', '/mnt/data/TreeHeight/nDSM_cropped_boundary.tif')
+    reprojected_gdf.to_file('/mnt/data/TreeHeight/dc_reprojected.shp', driver='ESRI Shapefile')
 
 
