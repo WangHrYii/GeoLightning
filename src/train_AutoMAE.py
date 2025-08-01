@@ -40,8 +40,8 @@ def train(cfg: DictConfig) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     if cfg.get("seed"):
         L.seed_everything(cfg.seed, workers=True)
 
-    log.info(f"Instantiating datamodule <{cfg.train_data._target_}>")
-    datamodule: LightningDataModule = hydra.utils.instantiate(cfg.train_data)   # 通过hydra实例化数据模块，为什么可以这样实例化呢？因为在配置文件中已经指定了数据模块的类名
+    log.info(f"Instantiating datamodule <{cfg.data._target_}>")
+    datamodule: LightningDataModule = hydra.utils.instantiate(cfg.data)   # 通过hydra实例化数据模块，为什么可以这样实例化呢？因为在配置文件中已经指定了数据模块的类名
 
     log.info(f"Instantiating model <{cfg.model._target_}>")
     model: LightningModule = hydra.utils.instantiate(cfg.model)
@@ -91,7 +91,7 @@ def train(cfg: DictConfig) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     return metric_dict, object_dict
 
 
-@hydra.main(version_base="1.3", config_path="/home/whr/Codes/GeoLightning/configs/TreeHeight_DPT", config_name="config.yaml")  # 通过hydra.main装饰器指定配置文件的路径和名称，返回配置后的字典
+@hydra.main(version_base="1.3", config_path="/home/whr/Codes/GeoLightning/configs/AutoMAE", config_name="config.yaml")  # 通过hydra.main装饰器指定配置文件的路径和名称，返回配置后的字典
 def main(cfg: DictConfig) -> Optional[float]:
     """Main entry point for training.
 

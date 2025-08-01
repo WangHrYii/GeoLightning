@@ -348,7 +348,7 @@ class ConvBlock(nn.Module):
         return self.conv_block(x)
 
 
-class DPTHead(nn.Module):
+class DPTHead(nn.Module):  # RefineNet
     def __init__(
         self, 
         in_channels, 

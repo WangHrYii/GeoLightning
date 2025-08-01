@@ -7,7 +7,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from PIL import Image
 import io
-import wandb
+import swanlab
 from src.losses.regression import ScaleInvariantLoss, GradientConsistencyLoss
 
 
@@ -296,9 +296,9 @@ class TreeHeightBase(LightningModule):
             pil_image = Image.open(buf)
             
             # Log to wandb
-            wandb.log({
-                f"validation_sample_{i}": wandb.Image(pil_image),
-                "epoch": self.current_epoch
+            swanlab.log({
+                f"validation_sample_{i}": swanlab.Image(pil_image),
+                "step": self.current_epoch
             })
             
             plt.close()

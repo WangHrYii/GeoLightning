@@ -1,0 +1,78 @@
+# SAR-Optical语义分割推理配置（处理已分割的切片）
+
+# 默认配置
+defaults:
+  - _self_
+
+# 实验标签（可选）
+tags: ["sar_optical", "inference", "tiled"]
+
+# 路径配置
+paths:
+  root_dir: ${oc.env:PROJECT_ROOT,/home/whr/Codes/GeoLightning}
+  output_dir: ${paths.root_dir}/outputs/${now:%Y-%m-%d_%H-%M-%S}
+  work_dir: ${hydra:runtime.cwd}
+
+# 模型配置
+model:
+  _target_: src.models.MultiModalSegTask.SAROpticalSeg.SAROpticalSegmentation
+  num_classes: 6
+  backbone: 'ResNet101'
+  pretrained: true
+  att_type: null
+  learning_rate: 1e-4
+  weight_decay: 1e-4
+  optimizer: 'adamw'
+  scheduler: 'cosine'
+  max_epochs: 100
+  loss_config:
+    ce_weight: 1.0
+    dice_weight: 1.0
+    focal_weight: 0.5
+  class_weights: null
+  ignore_index: -100
+  monitor_metric: 'val_miou'
+
+# 推理数据配置
+inference_data:
+  _target_: src.data.TiledInferenceDataset.SAROpticalTiledInferenceDataModule
+  sar_dir: "/mnt/data/RSIPAC_25_T1/For_Contestants/val/1_SAR"  # SAR切片文件夹路径
+  optical_dir: "/mnt/data/RSIPAC_25_T1/For_Contestants/val/2_Opt"  # 光学切片文件夹路径
+  image_size: [512, 512]  # 图像尺寸 [height, width]
+  batch_size: 8
+  num_workers: 4
+  sar_channels: 1
+  optical_channels: 3
+  sar_normalization: "linear"  # SAR归一化方法: 'linear', 'db', 'percentile'
+  optical_normalization: false  # 是否使用ImageNet归一化
+  file_extensions: ['.tif', '.tiff', '.png', '.jpg']  # 支持的文件扩展名
+
+# 训练器配置
+trainer:
+  _target_: lightning.Trainer
+  accelerator: gpu
+  devices: 1
+  precision: 16-mixed
+  logger: false  # 推理时通常不需要logger
+
+# 回调函数配置
+callbacks:
+  prediction_callback:
+    _target_: src.callbacks.TiledInferenceCallback.SAROpticalTiledPredictionCallback
+    output_dir: "/mnt/data/RSIPAC_25_T1/For_Contestants/val/segmentation_results"  # 输出目录
+    num_classes: 6
+    save_probability: false  # 是否保存概率图
+    save_colored: true  # 是否保存彩色分割图
+    color_map: null  # 使用默认颜色映射
+
+# 检查点路径（必须指定）
+ckpt_path: "/home/whr/Codes/GeoLightning/ckpts/outputs/runs/2025-06-26/16-38-24/checkpoints/best-008-0.5108.ckpt"
+
+# Hydra配置
+hydra:
+  mode: RUN
+  run:
+    dir: outputs/${now:%Y-%m-%d_%H-%M-%S}
+  job:
+    name: inference_tiled
+    chdir: false 

@@ -1,0 +1,148 @@
+# @package _global_
+
+# Task name and metadata
+task_name: "automae_millionaid_pretrain"
+tags:
+  - "mae"
+  - "pretraining"
+  - "vision_transformer"
+train: true
+test: true
+ckpt_path: null # Set to a checkpoint path to resume training
+seed: 42
+
+# --- Data Configuration ---
+data:
+  # Target the DataModule created previously
+  _target_: src.data.MilionAID_MAE.MillionAIDDataModule
+  data_dir: /mnt/data/MillionAID # IMPORTANT: Change this to your dataset path
+  batch_size: 4 # Adjust based on your GPU memory
+  num_workers: 8   # Adjust based on your CPU cores
+  val_split: 0.05  # Use a small validation set for pre-training
+  seed: ${seed}
+
+  # Transforms are defined here and will be instantiated by Hydra/OmegaConf
+  # Note: This is a common pattern, but requires a resolver to instantiate transforms.
+  # For simplicity, these could also be defined within the training script.
+  train_transform:
+    _target_: torchvision.transforms.Compose
+    transforms:
+      - _target_: torchvision.transforms.Resize
+        size: [224, 224]
+      - _target_: torchvision.transforms.RandomHorizontalFlip
+      - _target_: torchvision.transforms.ToTensor
+      - _target_: torchvision.transforms.Normalize
+        mean: [0.485, 0.456, 0.406]
+        std: [0.229, 0.224, 0.225]
+
+  val_test_transform:
+    _target_: torchvision.transforms.Compose
+    transforms:
+      - _target_: torchvision.transforms.Resize
+        size: [224, 224]
+      - _target_: torchvision.transforms.ToTensor
+      - _target_: torchvision.transforms.Normalize
+        mean: [0.485, 0.456, 0.406]
+        std: [0.229, 0.224, 0.225]
+
+# --- Model Configuration ---
+model:
+  # Target the AutoMAE LightningModule from your script
+  _target_: src.models.SelfSupervisedTask.AutoMAE.AutoMAELM # Assumes your file is models/mae_lightning.py
+
+  # Model Architecture (ViT-Base defaults)
+  img_size: 224
+  patch_size: 16
+  in_chans: 3
+  embed_dim: 768
+  depth: 12
+  num_heads: 12
+  decoder_embed_dim: 512
+  decoder_depth: 8
+  decoder_num_heads: 16
+  mlp_ratio: 4.0
+  norm_pix_loss: false # MAE default is False
+
+  # Training Parameters
+  mask_ratio: 0.75
+  mask_factor: 0.5
+  loss_g_factor: 0.2 # Weight for the generator's adversarial loss
+
+  # Optimizer Parameters (will be passed to the Adam/AdamW optimizers in the module)
+  learning_rate: 1.5e-4
+  weight_decay: 0.05
+  betas: [0.9, 0.95]
+  warmup_epochs: 40 # For a learning rate scheduler, not explicitly in your current module but good practice
+  min_lr: 1e-6      # For a learning rate scheduler
+
+  # Pretrained Scorer (Optional)
+  # pretrained_weight: /path/to/scorer_weights.ckpt
+  pretrained_weight: null
+
+  # Discriminator Parameters
+  use_spectral_norm: true
+  use_sigmoid: false
+  adversarial_loss_type: 'lsgan' # 'nsgan', 'lsgan', or 'hinge'
+
+logger:
+  swanlab:
+    _target_: swanlab.integration.pytorch_lightning.SwanLabLogger
+    project: "automae_millionaid_pretrain"
+    # Set name to include timestamp, learning rate, and batch size
+    name: ${now:%Y-%m-%d_%H-%M-%S}_lr${model.learning_rate}_bs${data.batch_size}_mask_ratio${model.mask_ratio}_mask_factor${model.mask_factor}_loss_g_factor${model.loss_g_factor}
+    save_dir: ${paths.log_dir}
+    log_model: false # Set to true to save model checkpoints to swanlab
+
+# --- Callbacks Configuration ---
+callbacks:
+  model_checkpoint:
+    _target_: lightning.pytorch.callbacks.ModelCheckpoint
+    dirpath: ${paths.output_dir}/checkpoints
+    filename: "epoch_{epoch:03d}-val_loss_{val_loss:.2f}"
+    monitor: "val_loss" # Monitor validation reconstruction loss
+    verbose: false
+    save_last: true
+    save_top_k: 3
+    mode: "min" # We want to minimize the validation loss
+    auto_insert_metric_name: false
+    save_weights_only: false
+
+  early_stopping:
+    _target_: lightning.pytorch.callbacks.EarlyStopping
+    monitor: "val_loss"
+    min_delta: 0.001
+    patience: 30 # Stop if val_loss doesn't improve for 30 epochs
+    verbose: false
+    mode: "min"
+
+  model_summary:
+    _target_: lightning.pytorch.callbacks.RichModelSummary
+    max_depth: -1
+
+  rich_progress_bar:
+    _target_: lightning.pytorch.callbacks.RichProgressBar
+
+# --- Trainer Configuration ---
+trainer:
+  _target_: lightning.pytorch.trainer.Trainer
+  default_root_dir: ${paths.output_dir}
+  min_epochs: 1
+  max_epochs: 400 # Pre-training often requires many epochs
+  accelerator: gpu
+  devices: [0] # Or specify multiple devices: [0, 1]
+  check_val_every_n_epoch: 1
+  deterministic: false
+  # strategy: "ddp" # for multi-GPU training
+
+# --- Paths and Extras (for project structure) ---
+paths:
+  root_dir: ${oc.env:PROJECT_ROOT}
+  data_dir: ${paths.root_dir}/data/
+  log_dir: ${paths.root_dir}/logs/
+  output_dir: ${hydra:runtime.output_dir}
+  work_dir: ${hydra:runtime.cwd}
+
+extras:
+  ignore_warnings: true
+  enforce_tags: true
+  print_config: true

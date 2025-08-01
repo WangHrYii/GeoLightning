@@ -274,4 +274,3 @@ def create_mask_visualization(masks_info, original_image=None):
    
     # 转换为PIL图像
     return Image.fromarray(overlay_img)
-
