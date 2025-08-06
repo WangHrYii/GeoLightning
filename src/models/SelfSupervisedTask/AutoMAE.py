@@ -653,12 +653,12 @@ class AutoMAELM(LightningModule):
             p.requires_grad_(True)
 
         # Log metrics
-        self.log('train_loss', total_loss, prog_bar=True)
-        self.log('train_mae_loss', loss_mae, prog_bar=True)
-        self.log('train_g_loss', loss_g, prog_bar=True)
-        self.log('train_d_loss', loss_d, prog_bar=True)
-        self.log('train_d_real', loss_d1r)
-        self.log('train_d_fake', loss_d1f)
+        self.log('train_loss', total_loss, prog_bar=True, on_step=True, on_epoch=True)
+        self.log('train_mae_loss', loss_mae, prog_bar=True, on_step=True, on_epoch=True)
+        self.log('train_g_loss', loss_g, prog_bar=True, on_step=True, on_epoch=True)
+        self.log('train_d_loss', loss_d, prog_bar=True, on_step=True, on_epoch=True)
+        self.log('train_d_real', loss_d1r, on_step=True, on_epoch=True)
+        self.log('train_d_fake', loss_d1f, on_step=True, on_epoch=True)
         
         return {'loss': total_loss}
 
@@ -685,7 +685,7 @@ class AutoMAELM(LightningModule):
                 mask_factor=self.mask_factor
             )
         
-        self.log('val_loss', loss_mae, prog_bar=True)
+        self.log('val_loss', loss_mae, prog_bar=True, on_epoch=True)
         return loss_mae
 
     def forward(self, x):

@@ -11,14 +11,15 @@ test: true
 ckpt_path: null # Set to a checkpoint path to resume training
 seed: 42
 
-# --- Data Configuration ---
 data:
   # Target the DataModule created previously
   _target_: src.data.MilionAID_MAE.MillionAIDDataModule
-  data_dir: /mnt/data/MillionAID # IMPORTANT: Change this to your dataset path
-  batch_size: 4 # Adjust based on your GPU memory
-  num_workers: 8   # Adjust based on your CPU cores
-  val_split: 0.05  # Use a small validation set for pre-training
+  # data_dir: /mnt/data/MillionAID # IMPORTANT: Change this to your dataset path 
+  data_dir: /home/whr/LocalData # IMPORTANT: Change this to your dataset path 
+  batch_size: 256 # Adjust based on your GPU memory
+  num_workers: 16   # Adjust based on your CPU cores
+  val_ratio: 0.01  # Use 1% of the total data for validation
+  test_ratio: 0.01 # Use 1% of the total data for testing
   seed: ${seed}
 
   # Transforms are defined here and will be instantiated by Hydra/OmegaConf
@@ -93,6 +94,11 @@ logger:
     save_dir: ${paths.log_dir}
     log_model: false # Set to true to save model checkpoints to swanlab
 
+# logger:
+#   swanlab:
+#     _target_: lightning.pytorch.loggers.CSVLogger  # 替换为简单的CSV日志记录
+#     save_dir: ${paths.log_dir}
+
 # --- Callbacks Configuration ---
 callbacks:
   model_checkpoint:
@@ -132,6 +138,7 @@ trainer:
   devices: [0] # Or specify multiple devices: [0, 1]
   check_val_every_n_epoch: 1
   deterministic: false
+  log_every_n_steps: 10  # Log every 10 steps
   # strategy: "ddp" # for multi-GPU training
 
 # --- Paths and Extras (for project structure) ---
