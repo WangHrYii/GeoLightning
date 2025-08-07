@@ -93,6 +93,7 @@ logger:
     name: ${now:%Y-%m-%d_%H-%M-%S}_lr${model.learning_rate}_bs${data.batch_size}_mask_ratio${model.mask_ratio}_mask_factor${model.mask_factor}_loss_g_factor${model.loss_g_factor}
     save_dir: ${paths.log_dir}
     log_model: false # Set to true to save model checkpoints to swanlab
+    mode: "local"
 
 # logger:
 #   swanlab:
