@@ -161,17 +161,57 @@ class ConvNeXt(nn.Module):
         return tuple(outs)
     '''loadpretrainedweights'''
     def loadpretrainedweights(self, structure_type, pretrained_model_path=''):
-        if pretrained_model_path and os.path.exists(pretrained_model_path):
-            checkpoint = torch.load(pretrained_model_path, map_location='cpu')
-        else:
-            checkpoint = model_zoo.load_url(DEFAULT_MODEL_URLS[structure_type], map_location='cpu')
+        """加载预训练权重，支持本地缓存和在线下载
+        
+        Args:
+            structure_type: 骨干网络类型
+            pretrained_model_path: 预训练权重路径
+        """
+        try:
+            # 尝试使用BackboneCache
+            from src.models.backbones.backbone_cache import BackboneCache
+            cache = BackboneCache()
+            # 优先使用指定的路径
+            if pretrained_model_path and os.path.exists(pretrained_model_path):
+                weight_path = pretrained_model_path
+            else:
+                # 通过缓存获取或下载权重
+                weight_path = cache.get_or_download_weight(structure_type, 'imagenet')
+                
+            if weight_path:
+                checkpoint = torch.load(weight_path, map_location='cpu')
+            else:
+                # 如果缓存获取失败，使用原有方式
+                if pretrained_model_path and os.path.exists(pretrained_model_path):
+                    checkpoint = torch.load(pretrained_model_path, map_location='cpu')
+                else:
+                    checkpoint = model_zoo.load_url(DEFAULT_MODEL_URLS[structure_type], map_location='cpu')
+        except ImportError:
+            # 如果BackboneCache不可用，使用原有方式
+            if pretrained_model_path and os.path.exists(pretrained_model_path):
+                checkpoint = torch.load(pretrained_model_path, map_location='cpu')
+            else:
+                checkpoint = model_zoo.load_url(DEFAULT_MODEL_URLS[structure_type], map_location='cpu')
+        except Exception as e:
+            print(f"使用BackboneCache时出错: {e}")
+            # 出错时使用原有方式
+            if pretrained_model_path and os.path.exists(pretrained_model_path):
+                checkpoint = torch.load(pretrained_model_path, map_location='cpu')
+            else:
+                checkpoint = model_zoo.load_url(DEFAULT_MODEL_URLS[structure_type], map_location='cpu')
+        
+        # 处理checkpoint中的权重
         if 'state_dict' in checkpoint:
             state_dict = checkpoint['state_dict']
         elif 'model' in checkpoint:
             state_dict = checkpoint['model']
         else:
             state_dict = checkpoint
+            
+        # 转换state_dict
         state_dict_convert = {}
         for key, value in state_dict.items():
             state_dict_convert[key.replace('backbone.', '')] = value
+            
+        # 加载权重
         self.load_state_dict(state_dict_convert, strict=False)

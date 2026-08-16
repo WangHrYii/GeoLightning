@@ -97,4 +97,3 @@ class SwinClassifier(LightningModule):
         }
         
         return [optimizer], [scheduler]
-

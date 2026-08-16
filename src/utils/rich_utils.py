@@ -95,5 +95,7 @@ def enforce_tags(cfg: DictConfig, save_to_file: bool = False) -> None:
         log.info(f"Tags: {cfg.tags}")
 
     if save_to_file:
-        with open(Path(cfg.paths.output_dir, "tags.log"), "w") as file:
+        output_path = Path(cfg.paths.output_dir)
+        output_path.mkdir(parents=True, exist_ok=True)
+        with open(Path(output_path, "tags.log"), "w") as file:
             rich.print(cfg.tags, file=file)

@@ -12,11 +12,12 @@ from  lightning.pytorch.trainer import Trainer
 from torchmetrics import JaccardIndex
 from torchmetrics import F1Score
 
+from src.registries import NETWORK_REGISTRY
 from src.utils import RankedLogger
 
 log = RankedLogger(__name__, rank_zero_only=True)
 
-
+@NETWORK_REGISTRY.register("unet")
 class UNet(nn.Module):
     def __init__(self, n_channels, n_classes, bilinear=False):
         super(UNet, self).__init__()

@@ -4,6 +4,7 @@ Function:
 Author:
     Zhenchao Jin
 '''
+# res34应该是有点bug
 import torch.nn as nn
 # from ...utils import loadpretrainedweights
 # from .bricks import BuildNormalization, BuildActivation
@@ -173,7 +174,11 @@ class ResNet(nn.Module):
             state_dict = loadpretrainedweights(
                 structure_type=structure_type, pretrained_model_path=pretrained_model_path, default_model_urls=DEFAULT_MODEL_URLS
             )
-            self.load_state_dict(state_dict, strict=False)
+            if state_dict is not None:
+                self.load_state_dict(state_dict, strict=False)
+                print(f"成功加载预训练权重: {structure_type}")
+            else:
+                print(f"未找到预训练权重，使用随机初始化: {structure_type}")
     '''makelayer'''
     def makelayer(self, block, inplanes, planes, num_blocks, stride=1, dilation=1, contract_dilation=True, use_avg_for_downsample=False, norm_cfg=None, act_cfg=None):
         downsample = None

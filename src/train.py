@@ -5,6 +5,7 @@ import hydra
 import lightning as L
 import rootutils
 import torch
+torch.set_float32_matmul_precision('high')
 from lightning import Callback, LightningDataModule, LightningModule, Trainer
 from lightning.pytorch.loggers import Logger
 from omegaconf import DictConfig
@@ -22,7 +23,7 @@ from src.utils import (
     task_wrapper,              # 用于装饰任务，经过装饰的任务
 )
 
-log = RankedLogger(__name__, rank_zero_only=True) # rank_zero_only=True 表示只有rank为0的进程才会记录日志
+log = RankedLogger(__name__, rank_zero_only=True)
 
 
 @task_wrapper
@@ -44,7 +45,7 @@ def train(cfg: DictConfig) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     datamodule: LightningDataModule = hydra.utils.instantiate(cfg.train_data)   # 通过hydra实例化数据模块，为什么可以这样实例化呢？因为在配置文件中已经指定了数据模块的类名
 
     log.info(f"Instantiating model <{cfg.model._target_}>")
-    model: LightningModule = hydra.utils.instantiate(cfg.model)
+    model: LightningModule = hydra.utils.instantiate(cfg.model, _recursive_=False)
 
     log.info("Instantiating callbacks...")
     callbacks: List[Callback] = instantiate_callbacks(cfg.get("callbacks"))
