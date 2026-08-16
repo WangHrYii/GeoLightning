@@ -2,236 +2,263 @@
 
 <img src="images/logo_all.png" alt="GeoLightning Logo"/>
 
-[![python](https://img.shields.io/badge/Python_3.8+|3.9|3.10-blue?logo=python)](https://www.python.org/)
-[![pytorch](https://img.shields.io/badge/PyTorch_2.3.1-ee4c2c?logo=pytorch)](https://pytorch.org/)
-[![lightning](https://img.shields.io/badge/Lightning_2.0+-792ee5?logo=pytorchlightning)](https://lightning.ai/)
-[![hydra](https://img.shields.io/badge/Config-Hydra_1.3-89b8cd)](https://hydra.cc/)
+[![Python](https://img.shields.io/badge/Python-3.8%20%7C%203.9%20%7C%203.10-blue?logo=python)](https://www.python.org/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.3.1-ee4c2c?logo=pytorch)](https://pytorch.org/)
+[![Lightning](https://img.shields.io/badge/Lightning-2.3.3-792ee5?logo=lightning)](https://lightning.ai/)
+[![Hydra](https://img.shields.io/badge/Hydra-1.3.2-89b8cd)](https://hydra.cc/)
+[![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 
-**多任务多模态遥感深度学习框架**
+**面向遥感影像的多任务、多模态 PyTorch Lightning 框架**
 
 </div>
 
-## 🌐 框架概述
+GeoLightning 提供遥感分类、语义分割、树高回归、自监督学习、特征上采样和
+SAR-光学多模态任务所需的数据、模型、训练与大图推理组件。当前版本为
+`0.2.0`，主要运行栈固定为 PyTorch `2.3.1`、TorchVision `0.18.1` 和
+Lightning `2.3.3`。
 
-GeoLightning 是一个基于 PyTorch Lightning 的地理空间深度学习框架，专注于遥感图像处理与分析，融合多种数据模态与任务类型，实现高效可扩展的地球观测数据智能处理。
+## 核心能力
 
-```yaml
-meta:
-  version: "0.2.0"
-  framework_type: "multi-task multi-modal"
-```
+| 组件 | 当前能力 |
+| --- | --- |
+| 数据集 | 源码集成 TorchGeo `v0.4.1` 的 85 个数据集类，不依赖外部 `torchgeo` 包 |
+| 空间采样 | Random、RandomBatch、Grid 和 PreChipped GeoSampler |
+| Backbone | 仓库原有遥感骨干网络，加上 11 个 TorchVision 源码家族、52 个模型变体 |
+| 统一接口 | `forward_features()`、`out_channels`、`out_strides` 特征协议 |
+| 任务 | 分类、分割、树高回归、多头任务、SAR-光学融合、AutoMAE、特征上采样 |
+| 工程能力 | Hydra 配置、Lightning 训练、分块推理、CI、wheel 构建和输出保留策略 |
 
-## 📂 项目结构
+## 项目结构
 
-```yml
+```text
 GeoLightning/
-├── configs/                     # 配置文件目录
-│   ├── configs_demo/            # 示例配置
-│   ├── TreeHeight_DPT/          # DPT树高估计配置
-│   ├── torchgeo/                # TorchGeo数据集配置
-│   ├── backbones/               # Backbone配置
-│   └── Unet_config/             # U-Net模型配置
-├── src/                         # 核心源代码
-│   ├── callbacks/               # 自定义回调
-│   ├── data/                    # 数据处理模块
-│   ├── losses/                  # 损失函数
-│   ├── models/                  # 模型实现
-│   │   ├── backbones/           # 特征提取骨干网络
-│   │   │   └── bricks/          # 网络基础构建模块
-│   │   ├── ChangeTask/          # 变化检测任务
-│   │   ├── ClassificationTask/  # 分类任务
-│   │   ├── DetectionTask/       # 目标检测任务
-│   │   ├── MheadUnet/           # 多头U-Net
-│   │   ├── RegressionTask/      # 回归任务
-│   │   ├── SegmentationTask/    # 分割任务
-│   │   └── SelfSupervisedTask/  # 自监督任务
-│   ├── preprocess/              # 数据预处理
-│   ├── utils/                   # 工具函数
-│   ├── eval.py                  # 评估入口
-│   ├── inference.py             # 推理
-│   └── train.py                 # 训练入口
-├── tools/                       # 辅助工具脚本
-├── tests/                       # 测试套件
-└── images/                      # 示例资源
+├── configs/
+│   ├── AutoMAE/                  # AutoMAE 预训练
+│   ├── TreeHeight_DPT/           # MINTHE/DPT 树高任务
+│   ├── TreeHeight_Unet/          # 多头 U-Net 树高任务
+│   ├── RSIPAC_25_T1/             # SAR-光学分割
+│   ├── torchgeo/                 # TorchGeo 数据集与 DataModule 示例
+│   └── backbones/                # Backbone 示例
+├── src/
+│   ├── data/
+│   │   └── torchgeo/             # 本地 TorchGeo datasets 与 samplers 源码
+│   ├── models/
+│   │   ├── backbones/            # 原有与源码集成 backbone
+│   │   ├── MultiHeadTask/        # 多头分割/高度回归
+│   │   ├── MultiModalSegTask/    # SAR-光学多模态分割
+│   │   ├── SegmentationTask/     # 语义分割
+│   │   ├── RegressionTask/       # 回归组件
+│   │   ├── SelfSupervisedTask/   # AutoMAE 等自监督模型
+│   │   └── FeatureUpsampling/    # 特征上采样
+│   ├── train.py                  # 默认训练入口
+│   ├── eval.py                   # 评估入口
+│   └── inference.py              # 推理入口
+├── requirements/                 # 分层依赖与版本约束
+├── tests/                        # CPU 测试基线
+├── tools/                        # 数据工具和输出清理工具
+└── docs/                         # 集成与存储策略说明
 ```
 
-## 🧩 多维架构设计
+## 安装
 
-GeoLightning 采用多维度架构设计，支持灵活组合与扩展：
+支持 Python `3.8` 至 `3.10`。建议先安装与机器 CUDA 版本匹配的 PyTorch，
+再安装 GeoLightning 功能依赖。
 
-- **任务类型维度**：支持像素级、对象级和场景级处理
-- **数据模态维度**：处理光学、SAR、LiDAR等多源数据
-- **处理阶段维度**：贯穿预处理、核心处理到后处理全链路
-- **组件类别维度**：模块化封装可插拔组件
-
-## 🚀 核心功能
-
-### 骨干网络
-
-提供多种先进的特征提取网络：
-
-```yaml
-backbone_networks:
-  CNN_based:
-    - "ResNet(50/101)"    # 残差网络
-    - "ConvNeXt"          # 新一代卷积网络
-    - "MobileNet"         # 轻量级网络
-
-  Transformer_based:
-    - "ViT"               # 视觉transformer
-    - "Swin"              # 分层窗口注意力
-    - "BEiT"              # 双向编码
-
-  Specialized:
-    - "UNet"              # U形编解码
-    - "HRNet"             # 高分辨率网络
-    - "BiSeNet"           # 双向分割网络
-```
-
-仓库内置 TorchVision `v0.18.1` 的 11 个模型家族源码，通过
-`TorchvisionSourceBackbone` 统一输出四级特征金字塔，并支持任意输入波段数。
-目前可用 52 个模型变体，包括 DenseNet、EfficientNet、RegNet、MaxVit、
-ShuffleNetV2、MNASNet、SqueezeNet、VGG、AlexNet、GoogLeNet 和 Inception。
-
-### 任务支持
-
-集成多种遥感任务处理能力：
-
-```yaml
-task_support:
-  Segmentation:           # 分割任务
-    - "语义分割"           # 像素级分类
-    - "实例分割"           # 对象区分
-
-  Detection:              # 检测任务
-    - "目标检测"           # 目标定位与分类
-    - "变化检测"           # 多时相差异识别
-
-  Regression:             # 回归任务
-    - "树高估计"           # 植被高度推断
-    - "生物量计算"         # 生物质量预测
-
-  Classification:         # 分类任务
-    - "地物分类"           # 土地覆盖分类
-    - "场景识别"           # 场景类型判断
-```
-
-### 数据处理能力
-
-专为地理空间数据设计的处理管线：
-
-TorchGeo `v0.4.1` 的 56 个 dataset 源码模块已集成到 `src.data.torchgeo`，
-对外提供 85 个数据集类。运行时不依赖外部 `torchgeo` 包，并使用惰性加载
-隔离单个数据集的可选依赖。
-
-实验输出默认执行“一个 best + 一个 last”检查点策略。历史 Hydra run 可用
-`python tools/prune_outputs.py outputs` 预览清理计划，显式添加 `--apply`
-后才会删除。
-
-```yaml
-data_processing:
-  spatial:
-    - "地理编码保持"       # 保留地理参考
-    - "坐标转换"          # 不同坐标系处理
-    - "多分辨率融合"       # 尺度适配
-
-  tiling:
-    - "智能分块"          # 自适应分块策略
-    - "无缝拼接"          # 边缘融合
-    - "大图推理"          # 超大影像处理
-
-  augmentation:
-    - "地理特定增强"       # 针对遥感特性
-    - "多尺度训练"        # 尺度不变性增强
-    - "谱间变换"          # 波段操作
-```
-
-## ⚡ 高级特性
-
-### 分块推理引擎
-
-处理超大遥感影像的关键技术：
-
-- **自适应分块**：根据模型与显存动态调整块大小
-- **位置敏感拼接**：边缘优化的无缝拼接技术
-- **批处理调度**：内存友好的推理排程
-- **地理参考保持**：全流程保持空间参考一致性
-
-### 多模态融合策略
-
-支持多源遥感数据的融合方法：
-
-- **早期融合**：输入层数据融合
-- **特征融合**：中间层特征交互
-- **结果融合**：决策级集成
-- **跨模态注意力**：不同模态间的自适应加权
-
-### 集成Lightning优势
-
-充分利用PyTorch Lightning生态：
-
-- **分布式训练**：多GPU/多节点无缝扩展
-- **混合精度**：自动FP16训练加速
-- **实验追踪**：集成主流实验管理工具
-- **检查点管理**：智能模型保存与恢复
-- **进度可视化**：训练进程实时监控
-
-## ⏭️ 待实现功能 (TODO)
-
-### 近期计划
-
-| ✅ 已完成           | ⬜ 待完成           |
-|---------------------|--------------------|
-| ✅ 模块化骨干网络实现 | ✅ 轻量级骨干网络扩展 |
-| ✅ 分块推理基础功能   | ⬜ 边缘融合算法优化   |
-| ✅ 语义分割任务支持   | ⬜ 实例分割任务扩展   |
-
-### 中期计划
-
-| ⬜ 计划功能         | ⬜ 关联功能         |
-|---------------------|--------------------|
-| ⬜ 多模态数据融合框架 | ⬜ 异构数据统一表示   |
-| ⬜ 时间序列分析支持   | ⬜ 变化轨迹追踪能力   |
-| ⬜ 模型量化与剪枝     | ⬜ ONNX/TensorRT导出  |
-
-### 远期愿景
-
-| ⬜ 基础设施         | ⬜ 核心功能         |
-|---------------------|--------------------|
-| ⬜ 云原生部署架构     | ⬜ 分布式处理框架     |
-| ⬜ 条件影像生成模型   | ⬜ 样本合成与增强     |
-| ⬜ GIS软件插件开发    | ⬜ API服务化接口      |
-
-## 💼 应用领域
-
-- **城市规划**：建筑检测、土地利用分析
-- **农业监测**：作物分类、生长监测、产量预测
-- **环境保护**：森林覆盖变化、水体监测
-- **灾害评估**：洪水范围、火灾影响、地质灾害
-- **基础设施管理**：道路网络提取、变电站检测
-
-## 🔧 安装与使用
+CPU 环境：
 
 ```bash
-# 完整开发环境
-pip install -r requirements.txt
+python -m pip install torch==2.3.1 torchvision==0.18.1 \
+  --index-url https://download.pytorch.org/whl/cpu
+python -m pip install -e ".[train,geo]"
+```
 
-# 或按功能安装
-pip install -e ".[train,geo]"
+完整开发与全部可选数据读取器：
 
-# 训练、评估和推理入口
+```bash
+python -m pip install -e ".[train,geo,datasets,dev]"
+```
+
+也可以使用分层 requirements：
+
+```bash
+python -m pip install -r requirements/train.txt
+python -m pip install -r requirements/geo.txt
+```
+
+根目录的 `requirements.txt` 会安装完整开发环境。各依赖层说明见
+[requirements/README.md](requirements/README.md)。
+
+## 路径配置
+
+仓库配置不包含开发机器绝对路径。数据、权重和项目目录通过环境变量或 Hydra
+override 指定，常用变量记录在 [.env.example](.env.example) 中：
+
+```dotenv
+PROJECT_ROOT=.
+DATA_ROOT=./data
+CHECKPOINT_ROOT=./ckpts
+TREEHEIGHT_PATCH_ROOT=./data/TreeHeight/DistributionSplitData_Patched
+DEPTH_WEIGHTS=./ckpts/depth_anything_v2_vitb.pth
+```
+
+`rootutils` 会读取项目根目录的 `.env`。所有 Hydra 参数也可以在命令行覆盖。
+
+## 训练、评估与推理
+
+安装为 editable package 后可以直接使用 CLI：
+
+```bash
+# 默认使用 configs/TreeHeight_DPT/config.yaml
 geolightning-train
+
+# 从检查点评估
 geolightning-eval ckpt_path=/path/to/model.ckpt
+
+# 分块预测
 geolightning-inference ckpt_path=/path/to/model.ckpt
 ```
 
-数据与权重路径通过环境变量或 Hydra override 配置，变量示例见
-`.env.example`。依赖分层与 CUDA 安装说明见 `requirements/README.md`。
+常用 Hydra override 示例：
 
-## 🤝 贡献
+```bash
+geolightning-train \
+  train_data.batch_size=8 \
+  trainer.accelerator=cpu \
+  trainer.devices=1
+```
 
-欢迎提交Pull Requests或Issues改进框架。详情请参阅[贡献指南](CONTRIBUTING.md)。
+其他任务入口：
 
-## 📄 许可证
+```bash
+python src/train_AutoMAE.py
+python src/train_rsipac_mcanet.py
+python src/inference_tiled.py
+```
 
-[MIT License](LICENSE)
+## TorchGeo 源码数据集
+
+TorchGeo `v0.4.1` 的 dataset 与 sampler 实现位于
+`src/data/torchgeo/`。数据集类按需加载，导入目录时不会一次性加载所有地理和
+可选读取依赖。
+
+```python
+from src.data import torchgeo
+
+print(len(torchgeo.available_datasets()))  # 85
+
+EuroSAT = torchgeo.get_dataset_class("EuroSAT")
+dataset = EuroSAT(
+    root="data/eurosat",
+    split="train",
+    bands=("B04", "B03", "B02"),
+)
+```
+
+索引型数据集可以通过统一 Lightning DataModule 使用：
+
+```yaml
+_target_: src.data.TorchGeoDataModule
+dataset_name: EuroSAT
+root: ${oc.env:DATA_ROOT,data}/eurosat
+batch_size: 64
+common_kwargs:
+  bands: [B04, B03, B02]
+  download: false
+train_kwargs: {split: train}
+val_kwargs: {split: val}
+test_kwargs: {split: test}
+```
+
+空间型 `GeoDataset` 必须配置 sampler。训练可使用随机批采样，验证和测试可使用
+确定性网格采样：
+
+```yaml
+train_sampler:
+  kind: random_batch
+  size: 256
+  length: 4096
+  units: pixels
+val_sampler:
+  kind: grid
+  size: 256
+  stride: 256
+  units: pixels
+```
+
+完整配置见
+[EuroSAT DataModule](configs/torchgeo/eurosat_datamodule.yaml) 和
+[Chesapeake13 空间采样](configs/torchgeo/chesapeake13_datamodule.yaml)。
+
+核心地理数据集需要 Rasterio、Fiona、PyProj、Shapely 和 Rtree。部分数据集还
+需要 `h5py`、`laspy`、`pycocotools`、`radiant-mlhub` 等可选依赖。
+
+## Backbone 源码集成
+
+`src/models/backbones/torchvision_source/` 包含 TorchVision `v0.18.1` 的本地
+模型定义、构造器、注册表与权重元数据，没有调用 `torchvision.models`。
+TorchVision 安装包仅提供底层算子、变换和权重下载工具。
+
+源码家族包括 AlexNet、DenseNet、EfficientNet、GoogLeNet、Inception、
+MaxVit、MNASNet、RegNet、ShuffleNetV2、SqueezeNet 和 VGG。
+
+```python
+import torch
+
+from src.models.backbones.torchvision_source import TorchvisionSourceBackbone
+
+encoder = TorchvisionSourceBackbone(
+    model_name="efficientnet_b0",
+    in_channels=6,
+    pretrained=False,
+)
+
+features = encoder(torch.randn(2, 6, 256, 256))
+print(encoder.out_channels)
+print(encoder.out_strides)
+```
+
+仓库原有 backbone 可以通过统一适配器转换为同一特征协议：
+
+```python
+from src.models.backbones import adapt_backbone
+
+encoder = adapt_backbone(existing_encoder)
+features = encoder.forward_features(images)
+```
+
+更多细节见 [docs/source-integrations.md](docs/source-integrations.md)。
+
+## Checkpoint 与输出保留
+
+维护中的训练配置默认只保留一个监控指标最优 checkpoint 和一个 `last.ckpt`。
+历史 Hydra run 使用以下命令预览清理计划：
+
+```bash
+python tools/prune_outputs.py outputs --keep-latest 20 --max-age-days 90
+```
+
+工具默认不会删除文件。确认预览结果后显式添加 `--apply`；重要 run 可以在目录
+内创建 `.keep` 文件保护。完整规则见
+[docs/storage-policy.md](docs/storage-policy.md)。
+
+## 测试与构建
+
+```bash
+pytest
+python -m build
+python -m pip check
+```
+
+GitHub Actions 会在 CPU 环境安装锁定依赖、构建 wheel 并运行非慢速测试。
+当前测试覆盖数据目录惰性加载、普通与空间 DataModule、backbone 特征协议、
+源码模型前向、bricks 兼容层、配置可移植性和输出保留策略。
+
+## 许可证与第三方源码
+
+GeoLightning 使用 [MIT License](LICENSE)。源码集成部分继续遵循各自上游许可：
+
+- TorchGeo datasets 和 samplers：MIT
+- TorchVision model sources：BSD 3-Clause
+
+版本、commit 和本地修改范围记录在
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
