@@ -1,3 +1,5 @@
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -33,3 +35,16 @@ def test_production_configs_are_machine_independent(project_root: Path) -> None:
         if any(prefix in text for prefix in forbidden):
             offenders.append(str(path.relative_to(project_root)))
     assert offenders == []
+
+
+def test_security_audit_export_contains_runtime_pins(project_root: Path, tmp_path: Path) -> None:
+    output = tmp_path / "audit.txt"
+    subprocess.run(
+        [sys.executable, "tools/export_audit_requirements.py", str(output)],
+        cwd=project_root,
+        check=True,
+    )
+    requirements = output.read_text(encoding="utf-8").splitlines()
+    assert "torch==2.13.0" in requirements
+    assert "torchvision==0.28.0" in requirements
+    assert all("github.com" not in requirement for requirement in requirements)

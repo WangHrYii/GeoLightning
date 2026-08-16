@@ -33,7 +33,7 @@ def _no_grad_trunc_normal_(tensor, mean, std, a, b):
         return tensor
 
 
-'''
+r'''
 Fills the input Tensor with values drawn from a truncated normal distribution. 
 The values are effectively drawn from the normal distribution :math:`\mathcal{N}(\text{mean}, \text{std}^2)` with values outside :math:`[a, b]` redrawn until they are within the bounds. 
 The method used for generating the random values works best when :math:`a \leq \text{mean} \leq b`.

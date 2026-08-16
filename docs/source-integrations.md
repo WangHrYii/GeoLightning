@@ -42,7 +42,9 @@ test_kwargs: {split: test}
 
 Core geospatial datasets require Rasterio, Fiona, PyProj, Shapely, and Rtree.
 Some individual datasets raise focused import errors for optional readers such
-as `h5py`, `laspy`, `pycocotools`, `pyvista`, or `radiant-mlhub`.
+as `h5py`, `laspy`, `pycocotools`, or `pyvista`. Radiant MLHub download support
+is isolated in the `mlhub-legacy` extra because its unmaintained client requires
+Pydantic 1 and Shapely 1.8, which conflict with the standard training stack.
 
 Spatial datasets can use the integrated `random`, `random_batch`, `grid`, and
 `pre_chipped` samplers. See `configs/torchgeo/chesapeake13_datamodule.yaml` for
@@ -55,7 +57,7 @@ DenseNet, EfficientNet, GoogLeNet, Inception, MaxVit, MNASNet, RegNet,
 ShuffleNetV2, SqueezeNet, and VGG.
 
 Model definitions, constructors, weights metadata, and the registry are local
-source. The installed TorchVision `0.18.1` package is used only for lower-level
+source. The installed TorchVision `0.28.0` package is used only for lower-level
 operators, transforms, logging, and weight download utilities.
 
 ```python

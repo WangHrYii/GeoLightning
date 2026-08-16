@@ -17,8 +17,8 @@ The full license and integration notes are stored beside the source in
 ## TorchVision Models
 
 - Project: https://github.com/pytorch/vision
-- Release: `v0.18.1`
-- Commit: `126fc22ce33e6c2426edcf9ed540810c178fe9ce`
+- Release: `v0.28.0`
+- Commit: `8fb87713a24951e639c494b0f2a8a81b5f8e33a6`
 - License: BSD 3-Clause
 - Local path: `src/models/backbones/torchvision_source/`
 

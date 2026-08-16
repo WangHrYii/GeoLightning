@@ -1,8 +1,2 @@
-hydra-core==1.3.2
-numpy==1.24.4
-omegaconf==2.3.0
-packaging==24.2
-pandas==2.0.3
-Pillow==10.4.0
-rich==13.9.4
-tqdm==4.67.1
+# Dependency versions are defined once in pyproject.toml.
+-e .

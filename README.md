@@ -2,9 +2,9 @@
 
 <img src="images/logo_all.png" alt="GeoLightning Logo"/>
 
-[![Python](https://img.shields.io/badge/Python-3.8%20%7C%203.9%20%7C%203.10-blue?logo=python)](https://www.python.org/)
-[![PyTorch](https://img.shields.io/badge/PyTorch-2.3.1-ee4c2c?logo=pytorch)](https://pytorch.org/)
-[![Lightning](https://img.shields.io/badge/Lightning-2.3.3-792ee5?logo=lightning)](https://lightning.ai/)
+[![Python](https://img.shields.io/badge/Python-3.10-blue?logo=python)](https://www.python.org/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.13.0-ee4c2c?logo=pytorch)](https://pytorch.org/)
+[![Lightning](https://img.shields.io/badge/Lightning-fcef404-792ee5?logo=lightning)](https://lightning.ai/)
 [![Hydra](https://img.shields.io/badge/Hydra-1.3.2-89b8cd)](https://hydra.cc/)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 
@@ -14,8 +14,8 @@
 
 GeoLightning 提供遥感分类、语义分割、树高回归、自监督学习、特征上采样和
 SAR-光学多模态任务所需的数据、模型、训练与大图推理组件。当前版本为
-`0.2.0`，主要运行栈固定为 PyTorch `2.3.1`、TorchVision `0.18.1` 和
-Lightning `2.3.3`。
+`0.2.0`，主要运行栈固定为 PyTorch `2.13.0`、TorchVision `0.28.0` 和
+包含上游 checkpoint 安全修复的 Lightning 提交 `fcef4045`。
 
 ## 核心能力
 
@@ -61,13 +61,13 @@ GeoLightning/
 
 ## 安装
 
-支持 Python `3.8` 至 `3.10`。建议先安装与机器 CUDA 版本匹配的 PyTorch，
+支持 Python `3.10`。建议先安装与机器 CUDA 版本匹配的 PyTorch，
 再安装 GeoLightning 功能依赖。
 
 CPU 环境：
 
 ```bash
-python -m pip install torch==2.3.1 torchvision==0.18.1 \
+python -m pip install torch==2.13.0 torchvision==0.28.0 \
   --index-url https://download.pytorch.org/whl/cpu
 python -m pip install -e ".[train,geo]"
 ```
@@ -190,11 +190,13 @@ val_sampler:
 [Chesapeake13 空间采样](configs/torchgeo/chesapeake13_datamodule.yaml)。
 
 核心地理数据集需要 Rasterio、Fiona、PyProj、Shapely 和 Rtree。部分数据集还
-需要 `h5py`、`laspy`、`pycocotools`、`radiant-mlhub` 等可选依赖。
+需要 `h5py`、`laspy`、`pycocotools` 等可选依赖。依赖 Radiant MLHub 下载的
+少数数据集需在独立环境安装 `.[mlhub-legacy]`；该停止维护的客户端固定依赖
+Pydantic 1 和 Shapely 1.8，不能与标准 `train,geo` 环境混装。
 
 ## Backbone 源码集成
 
-`src/models/backbones/torchvision_source/` 包含 TorchVision `v0.18.1` 的本地
+`src/models/backbones/torchvision_source/` 包含 TorchVision `v0.28.0` 的本地
 模型定义、构造器、注册表与权重元数据，没有调用 `torchvision.models`。
 TorchVision 安装包仅提供底层算子、变换和权重下载工具。
 
@@ -247,9 +249,15 @@ python tools/prune_outputs.py outputs --keep-latest 20 --max-age-days 90
 pytest
 python -m build
 python -m pip check
+python tools/export_audit_requirements.py /tmp/geolightning-audit.txt
+pip-audit --disable-pip --no-deps -r /tmp/geolightning-audit.txt
+pip-audit --skip-editable --ignore-vuln PYSEC-2026-3624
 ```
 
-GitHub Actions 会在 CPU 环境安装锁定依赖、构建 wheel 并运行非慢速测试。
+GitHub Actions 会在 CPU 环境安装锁定依赖、构建 wheel、运行非慢速测试，并分别
+审计直接依赖版本与完整安装环境。`PYSEC-2026-3624` 的忽略仅用于处理版本元数据
+误报：Lightning 固定提交 `fcef4045` 已包含对应上游修复 `d710d689`，测试套件
+也会验证不受信任的 checkpoint instantiator 被实际拦截。
 当前测试覆盖数据目录惰性加载、普通与空间 DataModule、backbone 特征协议、
 源码模型前向、bricks 兼容层、配置可移植性和输出保留策略。
 

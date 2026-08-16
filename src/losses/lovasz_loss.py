@@ -18,7 +18,7 @@ except ImportError:  # py3k
 from src.registries import LOSS_REGISTRY
 
 def lovasz_grad(gt_sorted):
-    """
+    r"""
     Computes gradient of the Lovasz extension w.r.t sorted errors
     See Alg. 1 in paper
     """
@@ -33,7 +33,7 @@ def lovasz_grad(gt_sorted):
 
 
 def iou_binary(preds, labels, EMPTY=1., ignore_index=None, per_image=True):
-    """
+    r"""
     IoU for foreground class
     binary: 1 foreground, 0 background
     """
@@ -78,7 +78,7 @@ def iou(preds, labels, C, EMPTY=1., ignore_index=None, per_image=False):
 
 
 def lovasz_hinge(logits, labels, per_image=False, ignore_index=-1):
-    """
+    r"""
     Binary Lovasz hinge loss
       logits: [B, H, W] Variable, logits at each pixel (between -\infty and +\infty)
       labels: [B, H, W] Tensor, binary ground truth masks (0 or 1)
@@ -95,7 +95,7 @@ def lovasz_hinge(logits, labels, per_image=False, ignore_index=-1):
 
 
 def lovasz_hinge_flat(logits, labels):
-    """
+    r"""
     Binary Lovasz hinge loss
       logits: [P] Variable, logits at each prediction (between -\infty and +\infty)
       labels: [P] Tensor, binary ground truth labels (0 or 1)
@@ -140,7 +140,7 @@ class StableBCELoss(torch.nn.modules.Module):
 
 
 def binary_xloss(logits, labels, ignore_index=-1):
-    """
+    r"""
     Binary Cross entropy loss
       logits: [B, H, W] Variable, logits at each pixel (between -\infty and +\infty)
       labels: [B, H, W] Tensor, binary ground truth masks (0 or 1)

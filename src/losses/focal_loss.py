@@ -57,7 +57,7 @@ def reduced_focal_loss(
     gamma: float = 2.0,
     reduction="mean",
 ) -> torch.Tensor:
-    """Compute reduced focal loss between target and output logits.
+    r"""Compute reduced focal loss between target and output logits.
     It has been proposed in `Reduced Focal Loss\: 1st Place Solution to xView
     object detection in Satellite Imagery`_ paper.
     .. note::

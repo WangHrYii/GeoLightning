@@ -33,6 +33,7 @@ def test_torchgeo_non_geo_datamodule(monkeypatch: pytest.MonkeyPatch) -> None:
     batch = next(iter(datamodule.train_dataloader()))
     assert batch["image"].shape == (2, 1)
     assert batch["split"] == ["train", "train"]
+    assert datamodule.train_dataloader().pin_memory is torch.cuda.is_available()
 
 
 def test_torchgeo_batch_sampler_datamodule(monkeypatch: pytest.MonkeyPatch) -> None:

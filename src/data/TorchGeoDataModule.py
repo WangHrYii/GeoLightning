@@ -3,6 +3,7 @@
 from typing import Any, Dict, Mapping, Optional, Tuple
 
 import lightning as L
+import torch
 from torch.utils.data import DataLoader, Dataset
 
 from src.data.torchgeo import get_dataset_class
@@ -56,7 +57,7 @@ class TorchGeoDataModule(L.LightningDataModule):
         self.train_sampler_config = dict(train_sampler) if train_sampler is not None else None
         self.val_sampler_config = dict(val_sampler) if val_sampler is not None else None
         self.test_sampler_config = dict(test_sampler) if test_sampler is not None else None
-        self.pin_memory = pin_memory
+        self.pin_memory = pin_memory and torch.cuda.is_available()
         self.persistent_workers = persistent_workers and num_workers > 0
         self.drop_last = drop_last
         self.save_hyperparameters(logger=False)
