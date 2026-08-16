@@ -1,0 +1,26 @@
+_target_: src.data.TorchGeoDataModule
+dataset_name: Chesapeake13
+root: ${oc.env:DATA_ROOT,data}/chesapeake13
+batch_size: 8
+num_workers: 4
+common_kwargs:
+  download: false
+  checksum: false
+train_kwargs: {}
+val_kwargs: {}
+test_kwargs: {}
+train_sampler:
+  kind: random_batch
+  size: 256
+  length: 4096
+  units: pixels
+val_sampler:
+  kind: grid
+  size: 256
+  stride: 256
+  units: pixels
+test_sampler:
+  kind: grid
+  size: 256
+  stride: 256
+  units: pixels

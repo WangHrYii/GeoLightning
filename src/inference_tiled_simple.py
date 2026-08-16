@@ -7,6 +7,7 @@ SAR-Optical语义分割简化推理脚本（处理已分割的切片）
 
 import torch
 import rootutils
+import argparse
 from lightning import Trainer
 from pathlib import Path
 
@@ -18,14 +19,24 @@ from src.data.TiledInferenceDataset import SAROpticalTiledInferenceDataModule
 from src.callbacks.TiledInferenceCallback import SAROpticalTiledPredictionCallback
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="Run SAR-optical tiled inference")
+    parser.add_argument("--sar-dir", required=True)
+    parser.add_argument("--optical-dir", required=True)
+    parser.add_argument("--checkpoint", required=True)
+    parser.add_argument("--output-dir", default="outputs/segmentation_results")
+    parser.add_argument("--accelerator", default="auto")
+    parser.add_argument("--devices", default="1")
+    return parser.parse_args()
+
+
 def main():
     """简化的推理入口函数"""
-    
-    # 配置参数
-    sar_dir = "/mnt/data/RSIPAC_25_T1/For_Contestants/val/1_SAR"
-    optical_dir = "/mnt/data/RSIPAC_25_T1/For_Contestants/val/2_Opt"
-    ckpt_path = "/home/whr/Codes/GeoLightning/ckpts/outputs/runs/2025-06-26/16-38-24/checkpoints/best-008-0.5108.ckpt"
-    output_dir = "/mnt/data/RSIPAC_25_T1/For_Contestants/val/segmentation_results"
+    args = parse_args()
+    sar_dir = args.sar_dir
+    optical_dir = args.optical_dir
+    ckpt_path = args.checkpoint
+    output_dir = args.output_dir
     
     print("=" * 50)
     print("SAR-Optical语义分割推理")
@@ -94,8 +105,8 @@ def main():
     # 创建训练器
     print("初始化训练器...")
     trainer = Trainer(
-        accelerator="gpu",
-        devices=1,
+        accelerator=args.accelerator,
+        devices=args.devices,
         precision="16-mixed",
         logger=False,
         callbacks=[prediction_callback]
@@ -113,4 +124,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main() 
+    main()

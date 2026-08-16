@@ -17,7 +17,7 @@ seed: 42
 # 训练数据配置（直接用于train.py）
 train_data:
   _target_: src.data.SAROpticalDataset.SAROpticalDataModule
-  data_root: /mnt/data/RSIPAC_25_T1/For_Contestants/train
+  data_root: ${oc.env:RSIPAC_TRAIN_ROOT,${paths.root_dir}/data/RSIPAC_25_T1/train}
   optical_dir: 2_Opt
   sar_dir: 1_SAR
   mask_dir: 0_Label
@@ -78,7 +78,7 @@ callbacks:
     monitor: val_miou
     verbose: false
     save_last: true
-    save_top_k: 3
+    save_top_k: 1
     mode: max
     auto_insert_metric_name: false
     save_weights_only: false
@@ -141,7 +141,7 @@ trainer:
 
 # 路径配置
 paths:
-  root_dir: ${oc.env:PROJECT_ROOT}
+  root_dir: ${oc.env:PROJECT_ROOT,.}
   data_dir: ${paths.root_dir}/data/
   log_dir: ${paths.root_dir}/logs/
   output_dir: ${hydra:runtime.output_dir}
@@ -164,4 +164,4 @@ hydra:
     dir: outputs/multirun/${now:%Y-%m-%d}/${now:%H-%M-%S}
     subdir: ${hydra.job.num}
   run:
-    dir: outputs/runs/${now:%Y-%m-%d}/${now:%H-%M-%S} 
+    dir: outputs/runs/${now:%Y-%m-%d}/${now:%H-%M-%S}

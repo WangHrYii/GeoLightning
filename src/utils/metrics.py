@@ -135,6 +135,16 @@ def plot_density_scatter_modern(y_true, y_pred, metrics, title, filename, subplo
 
 # Main program
 if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Compare tree-height prediction rasters")
+    parser.add_argument("true_height")
+    parser.add_argument("true_mask")
+    parser.add_argument("original_prediction")
+    parser.add_argument("optimized_prediction")
+    parser.add_argument("smoothed_prediction")
+    args = parser.parse_args()
+
     # Set font globally
     plt.rcParams.update({
         'font.family': 'serif',
@@ -143,17 +153,17 @@ if __name__ == "__main__":
     })
     
     # Read data
-    true_height = read_tif('/mnt/data/TreeHeight/nDSM_cropped_boundary.tif').astype(float)
-    true_mask = read_mask_tif('/mnt/data/TreeHeight/treecover/treecover_reproj_cropped.tif', [1])
+    true_height = read_tif(args.true_height).astype(float)
+    true_mask = read_mask_tif(args.true_mask, [1])
     
     # Read original prediction results
-    pred_height_orig = read_tif('/mnt/data/TreeHeight/predict_1/prediction_results_cover.tif').astype(float)
+    pred_height_orig = read_tif(args.original_prediction).astype(float)
     
     # Read optimized prediction results
-    pred_height = read_tif('/mnt/data/TreeHeight/predict_1/prediction_height_new.tif').astype(float)
+    pred_height = read_tif(args.optimized_prediction).astype(float)
     
     # Read smoothed prediction results
-    pred_height_smoothed = read_tif('/mnt/data/TreeHeight/predict_1/prediction_results_layered_corrected_smoothed.tif').astype(float)
+    pred_height_smoothed = read_tif(args.smoothed_prediction).astype(float)
 
     # Unify dimensions
     shapes = [true_height.shape, pred_height.shape, true_mask.shape, 

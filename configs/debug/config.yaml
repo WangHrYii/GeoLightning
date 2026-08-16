@@ -8,15 +8,15 @@ seed: null
 data:
   train_data:
     _target_: src.data.MTaskSemSegDataset.TreeHeightDataset
-    images_dir: /mnt/data/Tree/TreeHeight/raster_1m_crop_02_256
-    mask_dir: /mnt/data/Tree/TreeHeight/tree_cover_crop_02_256
-    assist_dir: /mnt/data/Tree/TreeHeight/nDSM_crop_02_256
+    images_dir: ${oc.env:TREEHEIGHT_IMAGES,${paths.root_dir}/data/TreeHeight/images}
+    mask_dir: ${oc.env:TREEHEIGHT_MASKS,${paths.root_dir}/data/TreeHeight/masks}
+    assist_dir: ${oc.env:TREEHEIGHT_HEIGHTS,${paths.root_dir}/data/TreeHeight/heights}
     scale: 1
     mask_values: [0, 101]
     batch_size: 8
   inference_data:
     _target_: src.data.Inference_RSTiledPredDataset.RSTiledPredDatasetLD
-    file_path: /mnt/data/Tree/TreeHeight/raster_1m_cropped_boundary.tif
+    file_path: ${oc.env:TREEHEIGHT_RASTER,${paths.root_dir}/data/TreeHeight/raster.tif}
     patch_size: 256
     overlap: 0.25
     batch_size: 8
@@ -89,7 +89,7 @@ trainer:
   check_val_every_n_epoch: 1
   deterministic: false
 paths:
-  root_dir: ${oc.env:PROJECT_ROOT}
+  root_dir: ${oc.env:PROJECT_ROOT,.}
   data_dir: ${paths.root_dir}/data/
   log_dir: ${paths.root_dir}/logs/
   output_dir: ${hydra:runtime.output_dir}

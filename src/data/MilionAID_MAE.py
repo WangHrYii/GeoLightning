@@ -301,7 +301,7 @@ if __name__ == '__main__':
         '--data-dir', 
         type=str, 
         required=False,
-        default='/mnt/data/MillionAID',
+        default='data/MillionAID',
         help="MillionAID 数据集的根目录路径。"
     )
     parser.add_argument(

@@ -8,12 +8,12 @@ import numpy as np
 import cv2
 import math
 
-rootutils.setup_root('/home/whr/Codes/GeoLightning/src/train.py', indicator=".project-root", pythonpath=True)
+rootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 
 from src.models.backbones import DINOv2
 from src.models.RegressionTask.dpt import DPTHead
 from src.models.RegressionTask.dpt import _make_scratch, _make_fusion_block
-from models.MultiHeadTask.TreeHeightBase import TreeHeightBase
+from src.models.MultiHeadTask.TreeHeightBase import TreeHeightBase
 from src.utils import RankedLogger
 
 log = RankedLogger(__name__, rank_zero_only=True)
@@ -659,7 +659,7 @@ class MINTHEModule(TreeHeightBase):
         gradient_lambda=0.1,
         lr_scheduler_patience=5,
         lr_scheduler_factor=0.5,
-        pretrained_depth_weights='/home/whr/Codes/GeoLightning/ckpts/depth_anything_v2_vitb.pth',
+        pretrained_depth_weights=None,
         auto_adjust_channels=True,
         backbone_lr=1e-5,
         seg_head_lr=1e-4,
@@ -787,7 +787,7 @@ if __name__ == "__main__":
     
     # 创建模型
     encoder_type = 'vitb'  # 使用较小的模型进行快速测试
-    model = MINTHE(encoder=encoder_type, pretrained_weights='/home/whr/Codes/GeoLightning/ckpts/depth_anything_v2_vitb.pth')
+    model = MINTHE(encoder=encoder_type, pretrained_weights='ckpts/depth_anything_v2_vitb.pth')
     model = model.to(device)
     model.eval()
     
@@ -804,7 +804,7 @@ if __name__ == "__main__":
     random_input = torch.randn(batch_size, 3, image_size, image_size).to(device)
     
     # 方法2：如果有测试图像，可以加载实际图像
-    test_image_path = '/home/whr/Codes/GeoLightning/images/3.jpg'  # 设置为实际图像路径，如果有的话
+    test_image_path = 'images/3.jpg'
     
     if test_image_path and os.path.exists(test_image_path):
         # 加载并预处理图像
@@ -943,7 +943,6 @@ if __name__ == "__main__":
         print(f"Error during test: {str(e)}")
         import traceback
         traceback.print_exc()
-
 
 
 

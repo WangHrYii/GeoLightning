@@ -1,0 +1,6 @@
+_target_: src.data.torchgeo.LoveDA
+root: ${oc.env:DATA_ROOT,data}/loveda
+split: train
+scene: [urban, rural]
+download: false
+checksum: false

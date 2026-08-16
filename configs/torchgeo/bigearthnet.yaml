@@ -1,0 +1,7 @@
+_target_: src.data.torchgeo.BigEarthNet
+root: ${oc.env:DATA_ROOT,data}/bigearthnet
+split: train
+bands: all
+num_classes: 19
+download: false
+checksum: false

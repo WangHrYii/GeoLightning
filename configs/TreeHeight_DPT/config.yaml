@@ -3,22 +3,22 @@ tags:
 - dev
 train: true
 test: true
-ckpt_path: /home/whr/Codes/CLFoundation/CLFoundation/outputs/2025-01-13/17-25-32/checkpoints/last.ckpt
+ckpt_path: null
 seed: null
 train_data:
   _target_: src.data.MTaskSemSegDataset.TreeHeightPatchedDataset
-  data_dir: /mnt/data/TreeHeight/DistributionSplitData_Patched/
+  data_dir: ${oc.env:TREEHEIGHT_PATCH_ROOT,${paths.root_dir}/data/TreeHeight/DistributionSplitData_Patched}
   mask_values: [0, 1]
   batch_size: 64
 inference_data:
   _target_: src.data.Inference_RSTiledPredDataset.RSTiledPredDatasetLD
-  file_path: /mnt/data/TreeHeight/raster_1m_cropped.tif
+  file_path: ${oc.env:TREEHEIGHT_RASTER,${paths.root_dir}/data/TreeHeight/raster_1m_cropped.tif}
   patch_size: 512
   overlap: 0.25
   batch_size: 8
   num_workers: 4
 model:
-  _target_: src.models.MultiHeadTask.MINTHEModule # src/models/MultiHeadTask/MINTHE.py
+  _target_: src.models.MultiHeadTask.MINTHE_v2Module # src/models/MultiHeadTask/MINTHE.py
   encoder: vitb
   seg_features: 128
   height_features: 128
@@ -26,7 +26,7 @@ model:
   seg_head_lr: 0.0003
   height_head_lr: 0.00003
   interaction_modules_lr: 0.0003
-  pretrained_depth_weights: /home/whr/Codes/GeoLightning/ckpts/depth_anything_v2_vitb.pth
+  pretrained_depth_weights: ${oc.env:DEPTH_WEIGHTS,${paths.root_dir}/ckpts/depth_anything_v2_vitb.pth}
 callbacks:
   model_checkpoint:  # 内置的回调函数，用于保存模型
     _target_: lightning.pytorch.callbacks.ModelCheckpoint
@@ -35,7 +35,7 @@ callbacks:
     monitor: val_r2
     verbose: false
     save_last: true
-    save_top_k: 3
+    save_top_k: 1
     mode: max
     auto_insert_metric_name: true  # 自动插入metric名称，意思是在filename中自动插入metric名称
     save_weights_only: false
@@ -84,7 +84,7 @@ trainer:
   check_val_every_n_epoch: 1
   deterministic: false
 paths:
-  root_dir: ${oc.env:PROJECT_ROOT}
+  root_dir: ${oc.env:PROJECT_ROOT,.}
   data_dir: ${paths.root_dir}/data/
   log_dir: ${paths.root_dir}/logs/
   output_dir: ${hydra:runtime.output_dir}

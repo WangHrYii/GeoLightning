@@ -721,7 +721,7 @@ class SAROpticalDataModule(LightningDataModule):
 if __name__ == "__main__":
     # 使用示例
     data_module = SAROpticalDataModule(
-        data_root="/mnt/data/RSIPAC_25_T1/For_Contestants/train",
+        data_root="data/RSIPAC_25_T1/train",
         image_size=(512, 512),
         num_classes=6,
         batch_size=4,

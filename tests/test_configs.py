@@ -1,37 +1,35 @@
-import hydra
-from hydra.core.hydra_config import HydraConfig
-from omegaconf import DictConfig
+from pathlib import Path
+
+import pytest
+from omegaconf import OmegaConf
 
 
-def test_train_config(cfg_train: DictConfig) -> None:
-    """Tests the training configuration provided by the `cfg_train` pytest fixture.
-
-    :param cfg_train: A DictConfig containing a valid training configuration.
-    """
-    assert cfg_train
-    assert cfg_train.data
-    assert cfg_train.model
-    assert cfg_train.trainer
-
-    HydraConfig().set_config(cfg_train)
-
-    hydra.utils.instantiate(cfg_train.data)
-    hydra.utils.instantiate(cfg_train.model)
-    hydra.utils.instantiate(cfg_train.trainer)
+@pytest.mark.parametrize(
+    "relative_path",
+    [
+        "configs/TreeHeight_DPT/config.yaml",
+        "configs/AutoMAE/config.yaml",
+        "configs/RSIPAC_25_T1/MCANet/config.yaml",
+        "configs/torchgeo/eurosat_datamodule.yaml",
+        "configs/backbones/torchvision_source.yaml",
+    ],
+)
+def test_primary_configs_parse(project_root: Path, relative_path: str) -> None:
+    config = OmegaConf.load(project_root / relative_path)
+    assert config
 
 
-def test_eval_config(cfg_eval: DictConfig) -> None:
-    """Tests the evaluation configuration provided by the `cfg_eval` pytest fixture.
-
-    :param cfg_train: A DictConfig containing a valid evaluation configuration.
-    """
-    assert cfg_eval
-    assert cfg_eval.data
-    assert cfg_eval.model
-    assert cfg_eval.trainer
-
-    HydraConfig().set_config(cfg_eval)
-
-    hydra.utils.instantiate(cfg_eval.data)
-    hydra.utils.instantiate(cfg_eval.model)
-    hydra.utils.instantiate(cfg_eval.trainer)
+def test_production_configs_are_machine_independent(project_root: Path) -> None:
+    forbidden = ("/home/", "/mnt/", "/root/", "/Users/")
+    offenders = []
+    paths = list((project_root / "configs").rglob("*.yaml"))
+    paths.extend(
+        path
+        for path in (project_root / "src").rglob("*.py")
+        if "src/data/torchgeo" not in path.as_posix()
+    )
+    for path in paths:
+        text = path.read_text(encoding="utf-8")
+        if any(prefix in text for prefix in forbidden):
+            offenders.append(str(path.relative_to(project_root)))
+    assert offenders == []

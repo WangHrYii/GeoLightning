@@ -13,7 +13,7 @@ import torchmetrics
 
 import rootutils
 
-rootutils.setup_root('/home/whr/Codes/GeoLightning/src/train.py', indicator=".project-root", pythonpath=True)
+rootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 
 
 from src.models.backbones import DINOv2

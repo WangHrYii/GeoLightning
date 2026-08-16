@@ -8,7 +8,7 @@ from matplotlib import pyplot as plt
 from PIL import Image
 import io
 import swanlab
-from src.losses.regression import ScaleInvariantLoss, GradientConsistencyLoss
+from src.losses.regression import ScaleInvariantLoss, GradientConsistencyLoss, EdgeAwareLoss, MaskedHeightLoss, LocalContrastLoss, SharpHeightLoss
 
 
 class TreeHeightBase(LightningModule):
@@ -25,17 +25,30 @@ class TreeHeightBase(LightningModule):
         lambda_height=1.0,
         si_lambda=0.5,
         gradient_lambda=0.1,
+        use_sharp_loss=True,  # 新增：是否使用清晰度损失
+        edge_weight=5.0,      # 新增：边缘权重
+        contrast_weight=0.5,  # 新增：对比度权重
     ):
         super().__init__()
-        
+
         # Store the model
         self.model = model
-        
+
         # Loss functions
         self.seg_loss = nn.BCEWithLogitsLoss() if n_classes == 1 else nn.CrossEntropyLoss()
         self.height_si_loss = ScaleInvariantLoss(lambd=si_lambda)
         self.height_grad_loss = GradientConsistencyLoss()
-        
+
+        # 新增：清晰度损失
+        self.use_sharp_loss = use_sharp_loss
+        if use_sharp_loss:
+            self.sharp_loss = SharpHeightLoss(
+                edge_weight=edge_weight,
+                contrast_weight=contrast_weight,
+                gradient_weight=gradient_lambda,
+                bg_weight=0.1
+            )
+
         # Loss weights
         self.lambda_seg = lambda_seg
         self.lambda_height = lambda_height
@@ -123,17 +136,21 @@ class TreeHeightBase(LightningModule):
         # Compute height loss - combination of L1, L2, R2 and gradient loss
         # l1_loss = F.l1_loss(height_pred, height_gt)
         l2_loss = F.mse_loss(height_pred, height_gt)
-        
+
         # Calculate R2 loss
         mean_target = torch.mean(height_gt)
         ss_res = torch.sum((height_gt - height_pred) ** 2)
         ss_tot = torch.sum((height_gt - mean_target) ** 2)
         r2_loss = 1 - (ss_res / (ss_tot + 1e-8))
 
-        height_grad_loss = self.height_grad_loss(height_pred, height_gt)
-        
-        # Combined height loss
-        height_loss = l2_loss + (1 - r2_loss)*10 + height_grad_loss
+        # 使用清晰度损失或原始损失
+        if self.use_sharp_loss:
+            # 使用分割掩码指导高度损失
+            sharp_loss = self.sharp_loss(height_pred, height_gt, seg_gt.float())
+            height_loss = sharp_loss + (1 - r2_loss) * 5
+        else:
+            height_grad_loss = self.height_grad_loss(height_pred, height_gt)
+            height_loss = l2_loss + (1 - r2_loss) * 10 + height_grad_loss
         
         # Total loss
         total_loss = self.lambda_seg * seg_loss + self.lambda_height * height_loss

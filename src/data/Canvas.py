@@ -212,6 +212,8 @@ class CarvanaDataset(BasicDatasetL):
 
 # debug
 if __name__ == '__main__':
-    dataset = BasicDatasetL(images_dir='/mnt/data/canvas/data/imgs/', mask_dir='/mnt/data/canvas/data/masks/', scale=0.5)
+    dataset = BasicDatasetL(
+        images_dir='data/canvas/images', mask_dir='data/canvas/masks', scale=0.5
+    )
 
     dataset.setup()

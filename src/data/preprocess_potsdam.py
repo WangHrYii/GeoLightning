@@ -95,7 +95,10 @@ def process_potsdam_dataset(input_dir, output_dir):
                     print(f"警告：找不到标签文件 {input_label_path}")
 
 if __name__ == "__main__":
-    input_dir = "/mnt/f/data/ISPRS semantic label data/Potsdam/data"  # 请替换为实际的输入目录
-    output_dir = "/mnt/f/data/ISPRS semantic label data/Potsdam/processed"  # 请替换为实际的输出目录
-    
-    process_potsdam_dataset(input_dir, output_dir) 
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Preprocess the Potsdam dataset")
+    parser.add_argument("input_dir")
+    parser.add_argument("output_dir")
+    args = parser.parse_args()
+    process_potsdam_dataset(args.input_dir, args.output_dir)

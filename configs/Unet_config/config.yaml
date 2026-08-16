@@ -7,8 +7,8 @@ ckpt_path: null
 seed: null
 data:
   _target_: src.data.Canvas.CarvanaDataset
-  images_dir: /mnt/data/canvas/data/imgs/
-  mask_dir: /mnt/data/canvas/data/masks/
+  images_dir: ${oc.env:CANVAS_IMAGES,${paths.root_dir}/data/canvas/images}
+  mask_dir: ${oc.env:CANVAS_MASKS,${paths.root_dir}/data/canvas/masks}
   scale: 0.5
 model:
   _target_: src.models.unet.unet_model.UNetLitModule
@@ -71,7 +71,7 @@ trainer:
   check_val_every_n_epoch: 1
   deterministic: false
 paths:
-  root_dir: ${oc.env:PROJECT_ROOT}
+  root_dir: ${oc.env:PROJECT_ROOT,.}
   data_dir: ${paths.root_dir}/data/
   log_dir: ${paths.root_dir}/logs/
   output_dir: ${hydra:runtime.output_dir}

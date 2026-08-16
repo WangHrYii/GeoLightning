@@ -7,7 +7,7 @@ test: true
 seed: 42
 train_data:
   _target_: src.data.Potsdam.PotsdamDatasetLD
-  root_dir: /mnt/f/data/ISPRS semantic label data/Potsdam/processed
+  root_dir: ${oc.env:POTSDAM_ROOT,${paths.root_dir}/data/Potsdam/processed}
   batch_size: 2
   num_workers: 4
   max_train_samples: 10
@@ -18,8 +18,8 @@ train_data:
 model:
   _target_: tests.SegmentationTask.LoftUpSegmentation.LoftUpSegmentation
   vfm_model_name: vits
-  vfm_checkpoint_path: /root/GeoLightning/ckpt/dinov2_vits14_pretrain.pth
-  loftup_checkpoint_path: /root/GeoLightning/ckpt/loftup_dinov2s.ckpt
+  vfm_checkpoint_path: ${oc.env:DINOV2_WEIGHTS,${paths.root_dir}/ckpts/dinov2_vits14_pretrain.pth}
+  loftup_checkpoint_path: ${oc.env:LOFTUP_WEIGHTS,${paths.root_dir}/ckpts/loftup_dinov2s.ckpt}
   feature_dim: 384
   classifier_dims: [128]
   dropout_rate: 0.2
@@ -49,7 +49,7 @@ trainer:
   val_check_interval: 1.0
 
 paths:
-  root_dir: ${oc.env:PROJECT_ROOT}
+  root_dir: ${oc.env:PROJECT_ROOT,.}
   data_dir: ${paths.root_dir}/data/
   log_dir: ${paths.root_dir}/logs/
   output_dir: ${hydra:runtime.output_dir}
@@ -66,7 +66,7 @@ callbacks:
     monitor: val_loss
     verbose: false
     save_last: true
-    save_top_k: 3
+    save_top_k: 1
     mode: min
     auto_insert_metric_name: false
     save_weights_only: true

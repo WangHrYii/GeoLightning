@@ -25,15 +25,15 @@ train_data:
     train_batch_size: 8
     val_batch_size: 8
     data_workers: 4
-    train_img_path: /home/dataset/vaihingen/img_dir/train
-    train_gt_path: /home/dataset/vaihingen/ann_dir/train
-    val_img_path: /home/dataset/vaihingen/img_dir/val
-    val_gt_path: /home/dataset/vaihingen/ann_dir/val
+    train_img_path: ${oc.env:VAIHINGEN_ROOT,${paths.root_dir}/data/vaihingen}/img_dir/train
+    train_gt_path: ${oc.env:VAIHINGEN_ROOT,${paths.root_dir}/data/vaihingen}/ann_dir/train
+    val_img_path: ${oc.env:VAIHINGEN_ROOT,${paths.root_dir}/data/vaihingen}/img_dir/val
+    val_gt_path: ${oc.env:VAIHINGEN_ROOT,${paths.root_dir}/data/vaihingen}/ann_dir/val
     img_suffix: .png
     gt_suffix: .png
-    mean_file: /home/dataset/vaihingen/mean_value.txt
-    std_file: /home/dataset/vaihingen/std_value.txt
-    color_table_file: /home/dataset/vaihingen/color_table.txt
+    mean_file: ${oc.env:VAIHINGEN_ROOT,${paths.root_dir}/data/vaihingen}/mean_value.txt
+    std_file: ${oc.env:VAIHINGEN_ROOT,${paths.root_dir}/data/vaihingen}/std_value.txt
+    color_table_file: ${oc.env:VAIHINGEN_ROOT,${paths.root_dir}/data/vaihingen}/color_table.txt
     class_info: list[dict[str, any]] = field(default_factory=list)
     use_data_enhancement: true
     aug_resize: false
@@ -65,7 +65,7 @@ model:
         structure_type: resnet50conv3x3stem
         use_conv3x3_stem: false
         outstride: 32
-        pretrained_model_path: "/home/code/pre_models" # backbone预训练权重存放文件夹路径
+        pretrained_model_path: ${oc.env:PRETRAINED_ROOT,${paths.root_dir}/ckpts}
     net_pretrained_file: null # net预训练权重文件路径：null就不是微调，有就会覆盖原来的路径
     ignore_index: ${train_data.cfg.ignore_index}
     visualization:            # 可视化训练集和验证集图片
@@ -131,7 +131,7 @@ callbacks:
     monitor: val_mIoU/Average
     verbose: false
     save_last: true
-    save_top_k: 3
+    save_top_k: 1
     mode: max
     auto_insert_metric_name: false
     save_weights_only: false
@@ -158,7 +158,7 @@ callbacks:
     _target_: lightning.pytorch.callbacks.RichProgressBar
 
 paths:
-  root_dir: ${oc.env:PROJECT_ROOT}
+  root_dir: ${oc.env:PROJECT_ROOT,.}
   output_dir: ${hydra:runtime.output_dir}
   work_dir: ${hydra:runtime.cwd}
 
@@ -186,7 +186,6 @@ extras:
 # test_gpus: [0]                   # 测试时使用的gpu编号列表
 # error_log: null                 # 错误日志文件的路径，如有需要记录错误信息
 # retry: 100                       # 测试或数据加载时的最大重试次数
-
 
 
 

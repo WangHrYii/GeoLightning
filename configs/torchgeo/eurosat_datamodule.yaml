@@ -1,0 +1,18 @@
+_target_: src.data.TorchGeoDataModule
+dataset_name: EuroSAT
+root: ${oc.env:DATA_ROOT,data}/eurosat
+batch_size: 64
+num_workers: 8
+common_kwargs:
+  bands: [B04, B03, B02]
+  download: false
+  checksum: false
+train_kwargs:
+  split: train
+val_kwargs:
+  split: val
+test_kwargs:
+  split: test
+pin_memory: true
+persistent_workers: true
+drop_last: false

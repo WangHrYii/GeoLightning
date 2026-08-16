@@ -24,7 +24,12 @@ class TIMMBackbone(nn.Module):
         self.timm_model.global_pool = None
         self.timm_model.fc = None
         self.timm_model.classifier = None
+        feature_info = getattr(self.timm_model, 'feature_info', None)
+        self.out_channels = tuple(feature_info.channels()) if feature_info is not None else None
+        self.out_strides = tuple(feature_info.reduction()) if feature_info is not None else None
+    '''forward_features'''
+    def forward_features(self, x):
+        return tuple(self.timm_model(x))
     '''forward'''
     def forward(self, x):
-        features = self.timm_model(x)
-        return features
+        return self.forward_features(x)

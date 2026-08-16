@@ -14,8 +14,7 @@ seed: 42
 data:
   # Target the DataModule created previously
   _target_: src.data.MilionAID_MAE.MillionAIDDataModule
-  # data_dir: /mnt/data/MillionAID # IMPORTANT: Change this to your dataset path 
-  data_dir: /home/whr/LocalData # IMPORTANT: Change this to your dataset path 
+  data_dir: ${oc.env:MILLIONAID_ROOT,${paths.root_dir}/data/MillionAID}
   batch_size: 256 # Adjust based on your GPU memory
   num_workers: 16   # Adjust based on your CPU cores
   val_ratio: 0.01  # Use 1% of the total data for validation
@@ -109,7 +108,7 @@ callbacks:
     monitor: "val_loss" # Monitor validation reconstruction loss
     verbose: false
     save_last: true
-    save_top_k: 3
+    save_top_k: 1
     mode: "min" # We want to minimize the validation loss
     auto_insert_metric_name: false
     save_weights_only: false
@@ -144,7 +143,7 @@ trainer:
 
 # --- Paths and Extras (for project structure) ---
 paths:
-  root_dir: ${oc.env:PROJECT_ROOT}
+  root_dir: ${oc.env:PROJECT_ROOT,.}
   data_dir: ${paths.root_dir}/data/
   log_dir: ${paths.root_dir}/logs/
   output_dir: ${hydra:runtime.output_dir}

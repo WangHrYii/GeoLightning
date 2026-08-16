@@ -251,7 +251,16 @@ def splitData(data_dir, label_dirs=[], ratio = None, mode = 'random', data_suffi
 
 
 if __name__ == '__main__':
-    data_dir = '/mnt/data/Tree/TreeHeight/raster_1m_crop_02_256'
-    label_dirs = ['/mnt/data/Tree/TreeHeight/tree_cover_crop_02_256',
-                  '/mnt/data/Tree/TreeHeight/nDSM_crop_02_256']
-    splitData(data_dir, label_dirs=label_dirs, ratio = [0.6, 0.4], mode = 'row', data_suffix = '.tif')
+    import argparse
+
+    parser = argparse.ArgumentParser(description='Split aligned raster datasets')
+    parser.add_argument('data_dir')
+    parser.add_argument('label_dirs', nargs='+')
+    args = parser.parse_args()
+    splitData(
+        args.data_dir,
+        label_dirs=args.label_dirs,
+        ratio=[0.6, 0.4],
+        mode='row',
+        data_suffix='.tif',
+    )

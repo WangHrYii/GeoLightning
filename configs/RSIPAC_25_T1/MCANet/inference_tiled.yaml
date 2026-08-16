@@ -9,7 +9,7 @@ tags: ["sar_optical", "inference", "tiled"]
 
 # 路径配置
 paths:
-  root_dir: ${oc.env:PROJECT_ROOT,/home/whr/Codes/GeoLightning}
+  root_dir: ${oc.env:PROJECT_ROOT,.}
   output_dir: ${paths.root_dir}/outputs/${now:%Y-%m-%d_%H-%M-%S}
   work_dir: ${hydra:runtime.cwd}
 
@@ -36,8 +36,8 @@ model:
 # 推理数据配置
 inference_data:
   _target_: src.data.TiledInferenceDataset.SAROpticalTiledInferenceDataModule
-  sar_dir: "/mnt/data/RSIPAC_25_T1/For_Contestants/val/1_SAR"  # SAR切片文件夹路径
-  optical_dir: "/mnt/data/RSIPAC_25_T1/For_Contestants/val/2_Opt"  # 光学切片文件夹路径
+  sar_dir: ${oc.env:RSIPAC_SAR_DIR,${paths.root_dir}/data/RSIPAC_25_T1/val/1_SAR}
+  optical_dir: ${oc.env:RSIPAC_OPTICAL_DIR,${paths.root_dir}/data/RSIPAC_25_T1/val/2_Opt}
   image_size: [512, 512]  # 图像尺寸 [height, width]
   batch_size: 8
   num_workers: 4
@@ -59,14 +59,14 @@ trainer:
 callbacks:
   prediction_callback:
     _target_: src.callbacks.TiledInferenceCallback.SAROpticalTiledPredictionCallback
-    output_dir: "/mnt/data/RSIPAC_25_T1/For_Contestants/val/segmentation_results"  # 输出目录
+    output_dir: ${paths.output_dir}/segmentation_results
     num_classes: 6
     save_probability: false  # 是否保存概率图
     save_colored: true  # 是否保存彩色分割图
     color_map: null  # 使用默认颜色映射
 
 # 检查点路径（必须指定）
-ckpt_path: "/home/whr/Codes/GeoLightning/ckpts/outputs/runs/2025-06-26/16-38-24/checkpoints/best-008-0.5108.ckpt"
+ckpt_path: ${oc.env:RSIPAC_CHECKPOINT,null}
 
 # Hydra配置
 hydra:
@@ -75,4 +75,4 @@ hydra:
     dir: outputs/${now:%Y-%m-%d_%H-%M-%S}
   job:
     name: inference_tiled
-    chdir: false 
+    chdir: false

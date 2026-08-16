@@ -8,185 +8,140 @@ import numpy as np
 import cv2
 import math
 
-rootutils.setup_root('/home/whr/Codes/GeoLightning/src/train.py', indicator=".project-root", pythonpath=True)
+rootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 
 
 from src.models.backbones import DINOv2
 from src.models.RegressionTask.dpt import DPTHead
 from src.models.RegressionTask.dpt import _make_scratch, _make_fusion_block
-from models.MultiHeadTask.TreeHeightBase import TreeHeightBase, ScaleInvariantLoss, GradientConsistencyLoss
+from src.models.MultiHeadTask.TreeHeightBase import TreeHeightBase, ScaleInvariantLoss, GradientConsistencyLoss
 from src.utils import RankedLogger
 
 log = RankedLogger(__name__, rank_zero_only=True)
 
 
+class EfficientBFFI(nn.Module):
+    """
+    高效双向特征融合交互模块 (Efficient Bidirectional Feature Fusion Interaction)
+
+    改进点:
+    1. 使用通道注意力替代全局空间注意力，复杂度从O(H²W²)降到O(C²)
+    2. 使用轻量级空间注意力捕获位置信息
+    3. 门控残差融合，让模型学习融合权重
+    """
+    def __init__(self, features, reduction=4):
+        super().__init__()
+        self.features = features
+
+        # === 通道注意力分支 (高效) ===
+        # 从对方任务学习通道重要性
+        self.seg_channel_att = nn.Sequential(
+            nn.AdaptiveAvgPool2d(1),
+            nn.Conv2d(features, features // reduction, 1, bias=False),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(features // reduction, features, 1, bias=False),
+            nn.Sigmoid()
+        )
+
+        self.height_channel_att = nn.Sequential(
+            nn.AdaptiveAvgPool2d(1),
+            nn.Conv2d(features, features // reduction, 1, bias=False),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(features // reduction, features, 1, bias=False),
+            nn.Sigmoid()
+        )
+
+        # === 轻量级空间注意力 ===
+        # 使用mean+max pooling沿通道维度压缩，然后用7x7卷积
+        self.seg_spatial_att = nn.Sequential(
+            nn.Conv2d(2, 1, kernel_size=7, padding=3, bias=False),
+            nn.Sigmoid()
+        )
+
+        self.height_spatial_att = nn.Sequential(
+            nn.Conv2d(2, 1, kernel_size=7, padding=3, bias=False),
+            nn.Sigmoid()
+        )
+
+        # === 门控融合 ===
+        # 学习融合权重，控制跨任务信息流动强度
+        self.seg_gate = nn.Sequential(
+            nn.Conv2d(features * 2, features, kernel_size=1, bias=False),
+            nn.BatchNorm2d(features),
+            nn.Sigmoid()
+        )
+
+        self.height_gate = nn.Sequential(
+            nn.Conv2d(features * 2, features, kernel_size=1, bias=False),
+            nn.BatchNorm2d(features),
+            nn.Sigmoid()
+        )
+
+        # === 特征精炼 ===
+        self.seg_refine = nn.Sequential(
+            nn.Conv2d(features, features, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(features),
+            nn.ReLU(inplace=True)
+        )
+
+        self.height_refine = nn.Sequential(
+            nn.Conv2d(features, features, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(features),
+            nn.ReLU(inplace=True)
+        )
+
+    def _spatial_attention_map(self, x):
+        """生成空间注意力图"""
+        avg_out = torch.mean(x, dim=1, keepdim=True)
+        max_out, _ = torch.max(x, dim=1, keepdim=True)
+        return torch.cat([avg_out, max_out], dim=1)
+
+    def forward(self, seg_features, height_features):
+        """
+        双向特征融合
+
+        Args:
+            seg_features: 分割特征 [B, C, H, W]
+            height_features: 高度特征 [B, C, H, W]
+        """
+        # 1. 通道注意力: 用对方特征指导自己的通道选择
+        seg_ch_weight = self.seg_channel_att(height_features)  # 高度→分割
+        height_ch_weight = self.height_channel_att(seg_features)  # 分割→高度
+
+        seg_ch_enhanced = seg_features * seg_ch_weight
+        height_ch_enhanced = height_features * height_ch_weight
+
+        # 2. 空间注意力: 用对方特征指导自己的空间关注
+        seg_sp_map = self._spatial_attention_map(height_features)
+        height_sp_map = self._spatial_attention_map(seg_features)
+
+        seg_sp_weight = self.seg_spatial_att(seg_sp_map)
+        height_sp_weight = self.height_spatial_att(height_sp_map)
+
+        seg_enhanced = seg_ch_enhanced * seg_sp_weight
+        height_enhanced = height_ch_enhanced * height_sp_weight
+
+        # 3. 门控融合: 学习融合强度
+        seg_gate = self.seg_gate(torch.cat([seg_features, seg_enhanced], dim=1))
+        height_gate = self.height_gate(torch.cat([height_features, height_enhanced], dim=1))
+
+        # 4. 残差融合
+        seg_out = seg_features + seg_gate * self.seg_refine(seg_enhanced)
+        height_out = height_features + height_gate * self.height_refine(height_enhanced)
+
+        return seg_out, height_out
+
+
 class HeadInteractionModule(nn.Module):
     """
-    高级解码器头交互模块（Advanced Head Interaction Module）
-    实现语义分割解码器与高度回归解码器之间的双向特征交互
-    
-    使用注意力机制和空间上下文信息，考虑了树木分割和高度回归任务的相关性
+    解码器头交互模块 - 保留原有接口，内部使用EfficientBFFI
     """
     def __init__(self, features):
         super().__init__()
-        self.features = features
-        
-        # 通道减少以降低计算复杂度（用于注意力计算前）
-        self.seg_channel_reduce = nn.Conv2d(features, features // 2, kernel_size=1)
-        self.height_channel_reduce = nn.Conv2d(features, features // 2, kernel_size=1)
-        
-        # 相互注意力 - 用于跨任务特征增强
-        # 关键点/查询/值投影
-        self.seg_to_height_key = nn.Conv2d(features // 2, features // 2, kernel_size=1)
-        self.seg_to_height_query = nn.Conv2d(features // 2, features // 2, kernel_size=1)
-        self.seg_to_height_value = nn.Conv2d(features // 2, features // 2, kernel_size=1)
-        
-        self.height_to_seg_key = nn.Conv2d(features // 2, features // 2, kernel_size=1)
-        self.height_to_seg_query = nn.Conv2d(features // 2, features // 2, kernel_size=1)
-        self.height_to_seg_value = nn.Conv2d(features // 2, features // 2, kernel_size=1)
-        
-        # 空间上下文编码 - 捕获每个任务内的空间关系
-        self.seg_context = nn.Sequential(
-            nn.Conv2d(features // 2, features // 2, kernel_size=3, padding=1, dilation=1),
-            nn.BatchNorm2d(features // 2),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(features // 2, features // 2, kernel_size=3, padding=2, dilation=2),
-            nn.BatchNorm2d(features // 2),
-            nn.ReLU(inplace=True)
-        )
-        
-        self.height_context = nn.Sequential(
-            nn.Conv2d(features // 2, features // 2, kernel_size=3, padding=1, dilation=1),
-            nn.BatchNorm2d(features // 2),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(features // 2, features // 2, kernel_size=3, padding=2, dilation=2),
-            nn.BatchNorm2d(features // 2),
-            nn.ReLU(inplace=True)
-        )
-        
-        # 门控注意力机制 - 根据分割掩码控制高度特征的流动
-        self.seg_gate = nn.Sequential(
-            nn.Conv2d(features // 2, features // 2, kernel_size=1),
-            nn.Sigmoid()
-        )
-        
-        # 最终融合模块
-        self.seg_fusion = nn.Sequential(
-            nn.Conv2d(features + features // 2, features, kernel_size=3, padding=1),
-            nn.BatchNorm2d(features),
-            nn.ReLU(inplace=True)
-        )
-        
-        self.height_fusion = nn.Sequential(
-            nn.Conv2d(features + features // 2, features, kernel_size=3, padding=1),
-            nn.BatchNorm2d(features),
-            nn.ReLU(inplace=True)
-        )
-        
-        # 任务特定的后处理
-        self.seg_postprocess = nn.Sequential(
-            nn.Conv2d(features, features, kernel_size=3, padding=1),
-            nn.BatchNorm2d(features),
-            nn.ReLU(inplace=True)
-        )
-        
-        self.height_postprocess = nn.Sequential(
-            nn.Conv2d(features, features, kernel_size=3, padding=1),
-            nn.BatchNorm2d(features),
-            nn.ReLU(inplace=True)
-        )
-    
-    def _cross_attention(self, query, key, value):
-        """计算跨任务注意力
-        
-        Args:
-            query: 查询特征 [B, C, H, W]
-            key: 键特征 [B, C, H, W]
-            value: 值特征 [B, C, H, W]
-            
-        Returns:
-            attended_features: 注意力增强的特征 [B, C, H, W]
-        """
-        batch, channels, height, width = query.size()
-        
-        # 将特征reshape为注意力计算所需的形状
-        query_flat = query.view(batch, channels, -1).permute(0, 2, 1)  # [B, HW, C]
-        key_flat = key.view(batch, channels, -1)  # [B, C, HW]
-        value_flat = value.view(batch, channels, -1).permute(0, 2, 1)  # [B, HW, C]
-        
-        # 计算注意力权重
-        attention = torch.matmul(query_flat, key_flat)  # [B, HW, HW]
-        attention = attention / (channels ** 0.5)  # 缩放因子
-        attention = F.softmax(attention, dim=-1)
-        
-        # 应用注意力
-        context = torch.matmul(attention, value_flat)  # [B, HW, C]
-        context = context.permute(0, 2, 1).contiguous().view(batch, channels, height, width)
-        
-        return context
-    
+        self.bffi = EfficientBFFI(features, reduction=4)
+
     def forward(self, seg_features, height_features):
-        """
-        解码器头交互
-        
-        Args:
-            seg_features: 分割解码器特征, [B, C, H, W]
-            height_features: 高度解码器特征, [B, C, H, W]
-            
-        Returns:
-            enhanced_seg_features: 增强后的分割解码器特征
-            enhanced_height_features: 增强后的高度解码器特征
-        """
-        batch, _, height, width = seg_features.size()
-        
-        # 保存原始特征用于残差连接
-        seg_orig = seg_features
-        height_orig = height_features
-        
-        # 降低通道数以减少计算复杂度
-        seg_reduced = self.seg_channel_reduce(seg_features)
-        height_reduced = self.height_channel_reduce(height_features)
-        
-        # 提取空间上下文信息
-        seg_ctx = self.seg_context(seg_reduced)
-        height_ctx = self.height_context(height_reduced)
-        
-        # 准备分割到高度的注意力组件
-        s2h_query = self.height_to_seg_query(height_reduced)
-        s2h_key = self.seg_to_height_key(seg_ctx)
-        s2h_value = self.seg_to_height_value(seg_ctx)
-        
-        # 准备高度到分割的注意力组件
-        h2s_query = self.seg_to_height_query(seg_reduced)
-        h2s_key = self.height_to_seg_key(height_ctx)
-        h2s_value = self.height_to_seg_value(height_ctx)
-        
-        # 计算跨任务注意力
-        seg_attend_height = self._cross_attention(h2s_query, h2s_key, h2s_value)
-        height_attend_seg = self._cross_attention(s2h_query, s2h_key, s2h_value)
-        
-        # 分割特征影响高度预测 - 通过门控机制
-        # 树木分割的地方应该有更强的高度预测关注
-        gate = self.seg_gate(seg_ctx)
-        height_attend_seg = height_attend_seg * gate
-        
-        # 特征融合 - 将原始特征和注意力增强的特征连接起来
-        enhanced_seg = torch.cat([seg_orig, seg_attend_height], dim=1)
-        enhanced_height = torch.cat([height_orig, height_attend_seg], dim=1)
-        
-        # 最终融合
-        enhanced_seg_features = self.seg_fusion(enhanced_seg)
-        enhanced_height_features = self.height_fusion(enhanced_height)
-        
-        # 任务特定后处理
-        enhanced_seg_features = self.seg_postprocess(enhanced_seg_features)
-        enhanced_height_features = self.height_postprocess(enhanced_height_features)
-        
-        # 残差连接
-        enhanced_seg_features = enhanced_seg_features + seg_orig
-        enhanced_height_features = enhanced_height_features + height_orig
-        
-        return enhanced_seg_features, enhanced_height_features
+        return self.bffi(seg_features, height_features)
 
 
 class MINTHE_v2(nn.Module):
@@ -530,7 +485,7 @@ class MINTHE_v2Module(TreeHeightBase):
         gradient_lambda=0.1,
         lr_scheduler_patience=5,
         lr_scheduler_factor=0.5,
-        pretrained_depth_weights='/home/whr/Codes/GeoLightning/ckpts/depth_anything_v2_vitb.pth',
+        pretrained_depth_weights=None,
         auto_adjust_channels=True,
         backbone_lr=1e-5,
         seg_head_lr=1e-4,
@@ -641,3 +596,74 @@ class MINTHE_v2Module(TreeHeightBase):
                 "frequency": 1,
             },
         }
+
+
+if __name__ == "__main__":
+    """
+    测试MINTHE_v2模型的前向传播
+    """
+    import time
+
+    # 设置设备
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    print(f"Using device: {device}")
+
+    # 创建模型
+    encoder_type = 'vitb'
+    print(f"\n创建MINTHE_v2模型 (encoder={encoder_type})...")
+
+    model = MINTHE_v2(
+        encoder=encoder_type,
+        seg_features=128,
+        height_features=128,
+        pretrained_weights=None  # 不加载预训练权重以加快测试
+    )
+    model = model.to(device)
+    model.eval()
+
+    # 打印模型信息
+    print(f"Encoder embed_dim: {model.pretrained.embed_dim}")
+    print(f"Out channels: {model.out_channels}")
+
+    # 计算参数量
+    total_params = sum(p.numel() for p in model.parameters())
+    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(f"Total parameters: {total_params:,}")
+    print(f"Trainable parameters: {trainable_params:,}")
+
+    # 测试前向传播
+    batch_size = 2
+    image_size = 518
+
+    print(f"\n测试前向传播 (batch_size={batch_size}, image_size={image_size})...")
+    random_input = torch.randn(batch_size, 3, image_size, image_size).to(device)
+
+    try:
+        with torch.no_grad():
+            start_time = time.time()
+            seg_out, height_out = model(random_input)
+            end_time = time.time()
+
+        print(f"Input shape: {random_input.shape}")
+        print(f"Segmentation output shape: {seg_out.shape}")
+        print(f"Height output shape: {height_out.shape}")
+        print(f"Inference time: {end_time - start_time:.4f}s")
+
+        # 测试EfficientBFFI模块
+        print("\n测试EfficientBFFI模块...")
+        bffi = EfficientBFFI(features=128).to(device)
+        test_seg = torch.randn(2, 128, 37, 37).to(device)
+        test_height = torch.randn(2, 128, 37, 37).to(device)
+
+        with torch.no_grad():
+            start = time.time()
+            out_seg, out_height = bffi(test_seg, test_height)
+            print(f"BFFI time: {time.time() - start:.4f}s")
+            print(f"BFFI output shapes: seg={out_seg.shape}, height={out_height.shape}")
+
+        print("\n所有测试通过!")
+
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        import traceback
+        traceback.print_exc()

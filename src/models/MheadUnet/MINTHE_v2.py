@@ -8,7 +8,7 @@ import numpy as np
 import cv2
 import math
 
-rootutils.setup_root('/home/whr/Codes/GeoLightning/src/train.py', indicator=".project-root", pythonpath=True)
+rootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 
 
 from src.models.backbones import DINOv2
@@ -530,7 +530,7 @@ class MINTHE_v2Module(TreeHeightBase):
         gradient_lambda=0.1,
         lr_scheduler_patience=5,
         lr_scheduler_factor=0.5,
-        pretrained_depth_weights='/home/whr/Codes/GeoLightning/ckpts/depth_anything_v2_vitb.pth',
+        pretrained_depth_weights=None,
         auto_adjust_channels=True,
         backbone_lr=1e-5,
         seg_head_lr=1e-4,

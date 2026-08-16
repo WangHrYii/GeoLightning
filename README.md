@@ -3,7 +3,7 @@
 <img src="images/logo_all.png" alt="GeoLightning Logo"/>
 
 [![python](https://img.shields.io/badge/Python_3.8+|3.9|3.10-blue?logo=python)](https://www.python.org/)
-[![pytorch](https://img.shields.io/badge/PyTorch_2.0+-ee4c2c?logo=pytorch)](https://pytorch.org/)
+[![pytorch](https://img.shields.io/badge/PyTorch_2.3.1-ee4c2c?logo=pytorch)](https://pytorch.org/)
 [![lightning](https://img.shields.io/badge/Lightning_2.0+-792ee5?logo=pytorchlightning)](https://lightning.ai/)
 [![hydra](https://img.shields.io/badge/Config-Hydra_1.3-89b8cd)](https://hydra.cc/)
 
@@ -17,7 +17,7 @@ GeoLightning 是一个基于 PyTorch Lightning 的地理空间深度学习框架
 
 ```yaml
 meta:
-  version: "2.0"
+  version: "0.2.0"
   framework_type: "multi-task multi-modal"
 ```
 
@@ -27,7 +27,9 @@ meta:
 GeoLightning/
 ├── configs/                     # 配置文件目录
 │   ├── configs_demo/            # 示例配置
-│   ├── TreeHeightUnet_config/   # 树高估计模型配置
+│   ├── TreeHeight_DPT/          # DPT树高估计配置
+│   ├── torchgeo/                # TorchGeo数据集配置
+│   ├── backbones/               # Backbone配置
 │   └── Unet_config/             # U-Net模型配置
 ├── src/                         # 核心源代码
 │   ├── callbacks/               # 自定义回调
@@ -37,10 +39,10 @@ GeoLightning/
 │   │   ├── backbones/           # 特征提取骨干网络
 │   │   │   └── bricks/          # 网络基础构建模块
 │   │   ├── ChangeTask/          # 变化检测任务
-│   │   ├── ClassficationTask/   # 分类任务
+│   │   ├── ClassificationTask/  # 分类任务
 │   │   ├── DetectionTask/       # 目标检测任务
 │   │   ├── MheadUnet/           # 多头U-Net
-│   │   ├── RegresstionTask/     # 回归任务
+│   │   ├── RegressionTask/      # 回归任务
 │   │   ├── SegmentationTask/    # 分割任务
 │   │   └── SelfSupervisedTask/  # 自监督任务
 │   ├── preprocess/              # 数据预处理
@@ -86,6 +88,11 @@ backbone_networks:
     - "BiSeNet"           # 双向分割网络
 ```
 
+仓库内置 TorchVision `v0.18.1` 的 11 个模型家族源码，通过
+`TorchvisionSourceBackbone` 统一输出四级特征金字塔，并支持任意输入波段数。
+目前可用 52 个模型变体，包括 DenseNet、EfficientNet、RegNet、MaxVit、
+ShuffleNetV2、MNASNet、SqueezeNet、VGG、AlexNet、GoogLeNet 和 Inception。
+
 ### 任务支持
 
 集成多种遥感任务处理能力：
@@ -112,6 +119,14 @@ task_support:
 ### 数据处理能力
 
 专为地理空间数据设计的处理管线：
+
+TorchGeo `v0.4.1` 的 56 个 dataset 源码模块已集成到 `src.data.torchgeo`，
+对外提供 85 个数据集类。运行时不依赖外部 `torchgeo` 包，并使用惰性加载
+隔离单个数据集的可选依赖。
+
+实验输出默认执行“一个 best + 一个 last”检查点策略。历史 Hydra run 可用
+`python tools/prune_outputs.py outputs` 预览清理计划，显式添加 `--apply`
+后才会删除。
 
 ```yaml
 data_processing:
@@ -167,7 +182,7 @@ data_processing:
 
 | ✅ 已完成           | ⬜ 待完成           |
 |---------------------|--------------------|
-| ✅ 模块化骨干网络实现 | ⬜ 轻量级骨干网络优化 |
+| ✅ 模块化骨干网络实现 | ✅ 轻量级骨干网络扩展 |
 | ✅ 分块推理基础功能   | ⬜ 边缘融合算法优化   |
 | ✅ 语义分割任务支持   | ⬜ 实例分割任务扩展   |
 
@@ -198,15 +213,20 @@ data_processing:
 ## 🔧 安装与使用
 
 ```bash
-# 安装依赖
+# 完整开发环境
 pip install -r requirements.txt
 
-# 训练模型
-python src/train.py
+# 或按功能安装
+pip install -e ".[train,geo]"
 
-# 评估模型
-python src/eval.py
+# 训练、评估和推理入口
+geolightning-train
+geolightning-eval ckpt_path=/path/to/model.ckpt
+geolightning-inference ckpt_path=/path/to/model.ckpt
 ```
+
+数据与权重路径通过环境变量或 Hydra override 配置，变量示例见
+`.env.example`。依赖分层与 CUDA 安装说明见 `requirements/README.md`。
 
 ## 🤝 贡献
 

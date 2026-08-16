@@ -76,4 +76,10 @@ def get_single_tree(shapefile_path, save_path=None):
 
 
 if __name__ == '__main__':
-    get_single_tree('/mnt/data/Tree/Test/Treecanopies_2018_cityofMelb_four_CLUE/Treecanopies_2018_cityofMelb_four_CLUE.shp', save_path='/mnt/data/Tree/Test/Treecanopies_2018_cityofMelb_four_CLUE/Treecanopies_2018_cityofMelb_four_CLUE_single_tree.shp')
+    import argparse
+
+    parser = argparse.ArgumentParser(description='Extract individual tree polygons')
+    parser.add_argument('input_path')
+    parser.add_argument('output_path')
+    args = parser.parse_args()
+    get_single_tree(args.input_path, save_path=args.output_path)

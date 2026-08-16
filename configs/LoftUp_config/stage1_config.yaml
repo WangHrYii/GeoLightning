@@ -8,7 +8,7 @@ seed: 42
 data:
   train_data:
     _target_: src.data.LoveDA.LoveDADatasetLD
-    root_dir: /mnt/f/data/高分辨率数据集/LoveDA
+    root_dir: ${oc.env:LOVEDA_ROOT,${paths.root_dir}/data/LoveDA}
     split: train
     batch_size: 2
     num_workers: 4
@@ -25,12 +25,12 @@ model:
   vfm_model:
     _target_: src.models.FeatureUpsampling.dinov2_feature.DINOv2FeatureExtractor
     model_name: vits
-    checkpoint_path: /root/GeoLightning/ckpt/dinov2_vits14_pretrain.pth
+    checkpoint_path: ${oc.env:DINOV2_WEIGHTS,${paths.root_dir}/ckpts/dinov2_vits14_pretrain.pth}
   sam_model:
     _target_: src.models.FeatureUpsampling.SAM_mask.SAMMaskProcessor
-    sam_config: ../../configs/sam2_configs/sam2.1_hiera_s.yaml
-    sam_checkpoint: /root/GeoLightning/ckpt/sam2.1_hiera_small.pt
-    mask_cache_dir: /root/GeoLightning/ckpt/temp_masks
+    sam_config: ${paths.root_dir}/configs/sam2_configs/sam2.1_hiera_s.yaml
+    sam_checkpoint: ${oc.env:SAM2_WEIGHTS,${paths.root_dir}/ckpts/sam2.1_hiera_small.pt}
+    mask_cache_dir: ${paths.root_dir}/.cache/sam_masks
     experiment_name: stage1
     vfm_input_size: 224
   upsampler:
@@ -60,7 +60,7 @@ trainer:
   deterministic: false
 
 paths:
-  root_dir: ${oc.env:PROJECT_ROOT}
+  root_dir: ${oc.env:PROJECT_ROOT,.}
   data_dir: ${paths.root_dir}/data/
   log_dir: ${paths.root_dir}/logs/
   output_dir: ${hydra:runtime.output_dir}
@@ -77,7 +77,7 @@ callbacks:
     monitor: val_loss
     verbose: false
     save_last: true
-    save_top_k: 3
+    save_top_k: 1
     mode: min
     auto_insert_metric_name: false
     save_weights_only: true

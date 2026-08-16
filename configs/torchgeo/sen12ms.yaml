@@ -1,0 +1,5 @@
+_target_: src.data.torchgeo.SEN12MS
+root: ${oc.env:DATA_ROOT,data}/sen12ms
+split: train
+bands: [VV, VH, B02, B03, B04, B08]
+checksum: false

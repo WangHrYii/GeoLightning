@@ -185,7 +185,9 @@ def resnet101(pretrained=False, type=None, num_classes=1000, att_type=None):
     # print(model)
     if pretrained:
         # 使用本地预训练文件，不再从网络下载
-        pretrained_path = '/home/whr/Codes/GeoLightning/ckpts/resnet101-5d3b4d8f.pth'
+        pretrained_path = os.environ.get(
+            "RESNET101_WEIGHTS", "ckpts/resnet101-5d3b4d8f.pth"
+        )
         if os.path.exists(pretrained_path):
             print(f"Loading local pretrained weights from {pretrained_path}")
             model.load_state_dict(torch.load(pretrained_path, map_location='cpu'), strict=False)

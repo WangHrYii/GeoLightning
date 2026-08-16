@@ -3,19 +3,19 @@ tags:
 - dev
 train: true
 test: true
-ckpt_path: /home/whr/Codes/CLFoundation/CLFoundation/outputs/2025-01-13/17-25-32/checkpoints/last.ckpt
+ckpt_path: null
 seed: null
 train_data:
   _target_: src.data.MTaskSemSegDataset.TreeHeightDataset
-  images_dir: /mnt/data/TreeHeight/image_256
-  mask_dir: /mnt/data/TreeHeight/treecover_256
-  assist_dir: /mnt/data/TreeHeight/nDSM_256
+  images_dir: ${oc.env:TREEHEIGHT_IMAGES,${paths.root_dir}/data/TreeHeight/image_256}
+  mask_dir: ${oc.env:TREEHEIGHT_MASKS,${paths.root_dir}/data/TreeHeight/treecover_256}
+  assist_dir: ${oc.env:TREEHEIGHT_HEIGHTS,${paths.root_dir}/data/TreeHeight/nDSM_256}
   scale: 1
   mask_values: [0, 1]
   batch_size: 16
 inference_data:
   _target_: src.data.Inference_RSTiledPredDataset.RSTiledPredDatasetLD
-  file_path: /mnt/data/TreeHeight/raster_1m_cropped.tif
+  file_path: ${oc.env:TREEHEIGHT_RASTER,${paths.root_dir}/data/TreeHeight/raster_1m_cropped.tif}
   patch_size: 256
   overlap: 0.25
   batch_size: 8
@@ -48,7 +48,7 @@ callbacks:
     monitor: val/total_loss
     verbose: false
     save_last: true
-    save_top_k: 2
+    save_top_k: 1
     mode: min
     auto_insert_metric_name: false
     save_weights_only: false
@@ -97,7 +97,7 @@ trainer:
   check_val_every_n_epoch: 1
   deterministic: false
 paths:
-  root_dir: ${oc.env:PROJECT_ROOT}
+  root_dir: ${oc.env:PROJECT_ROOT,.}
   data_dir: ${paths.root_dir}/data/
   log_dir: ${paths.root_dir}/logs/
   output_dir: ${hydra:runtime.output_dir}

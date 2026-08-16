@@ -91,7 +91,7 @@ def train(cfg: DictConfig) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     return metric_dict, object_dict
 
 
-@hydra.main(version_base="1.3", config_path="/home/whr/Codes/GeoLightning/configs/RSIPAC_25_T1/MCANet", config_name="config.yaml")
+@hydra.main(version_base="1.3", config_path="../configs/RSIPAC_25_T1/MCANet", config_name="config.yaml")
 def main(cfg: DictConfig) -> Optional[float]:
     """Main entry point for training.
 
@@ -114,4 +114,4 @@ def main(cfg: DictConfig) -> Optional[float]:
 
 
 if __name__ == "__main__":
-    main() 
+    main()

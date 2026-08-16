@@ -1,0 +1,14 @@
+-r core.txt
+
+lightning==2.3.3
+matplotlib==3.7.5
+opencv-python==4.10.0.84
+rootutils==1.0.7
+scikit-image==0.21.0
+seaborn==0.13.2
+swanlab==0.5.8
+tensorboard==2.14.0
+torch==2.3.1
+torchmetrics==1.5.2
+torchvision==0.18.1
+wandb==0.19.2

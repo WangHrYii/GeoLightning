@@ -203,7 +203,7 @@ class PotsdamDatasetLD(LightningDataModule):
 
 if __name__ == "__main__":
     # 测试数据集加载
-    root_dir = "/mnt/f/data/ISPRS semantic label data/Potsdam/processed"
+    root_dir = "data/Potsdam/processed"
     
     # 创建数据集实例
     dataset = PotsdamDataset(
@@ -230,4 +230,4 @@ if __name__ == "__main__":
     print(f"批次大小: {batch['image'].shape[0]}")
     print(f"VFM图像尺寸: {batch['image'].shape}")
     print(f"原始图像尺寸: {batch['original_image'].shape}")
-    print(f"掩码尺寸: {batch['mask'].shape}") 
+    print(f"掩码尺寸: {batch['mask'].shape}")

@@ -1,0 +1,5 @@
+_target_: src.data.torchgeo.RESISC45
+root: ${oc.env:DATA_ROOT,data}/resisc45
+split: train
+download: false
+checksum: false

@@ -1,0 +1,6 @@
+_target_: src.data.torchgeo.EuroSAT
+root: ${oc.env:DATA_ROOT,data}/eurosat
+split: train
+bands: [B04, B03, B02]
+download: false
+checksum: false

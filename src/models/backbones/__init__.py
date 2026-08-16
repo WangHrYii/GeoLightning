@@ -35,6 +35,16 @@ from src.models.backbones.mobilevit import MobileViT, MobileViTV2
 from src.models.backbones.mobilesamtinyvit import MobileSAMTinyViT
 from src.models.backbones.mobilenet import MobileNetV2, MobileNetV3
 from src.models.backbones.dinov2 import DINOv2
+from src.models.backbones.torchvision_source import (
+    TorchvisionSourceBackbone,
+    create_source_model,
+    list_source_models,
+)
+from src.models.backbones.protocol import (
+    FeatureBackbone,
+    FeatureBackboneAdapter,
+    adapt_backbone,
+)
 
 from src.models.backbones.bricks import (
     Scale, L2Norm, makedivisible, truncnormal, 
@@ -49,5 +59,11 @@ __all__ = [
     'LoftUp',
     'apply_mask_optimization',
     'load_loftup_checkpoint',
-    'get_upsampler'
+    'get_upsampler',
+    'TorchvisionSourceBackbone',
+    'create_source_model',
+    'list_source_models',
+    'FeatureBackbone',
+    'FeatureBackboneAdapter',
+    'adapt_backbone',
 ]

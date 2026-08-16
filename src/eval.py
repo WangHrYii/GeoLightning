@@ -47,11 +47,14 @@ def evaluate(cfg: DictConfig) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     """
     assert cfg.ckpt_path
 
-    log.info(f"Instantiating datamodule <{cfg.data._target_}>")
-    datamodule: LightningDataModule = hydra.utils.instantiate(cfg.data)
+    data_config = cfg.get("test_data") or cfg.get("train_data") or cfg.get("data")
+    if data_config is None:
+        raise ValueError("Evaluation config must define test_data, train_data, or data")
+    log.info(f"Instantiating datamodule <{data_config._target_}>")
+    datamodule: LightningDataModule = hydra.utils.instantiate(data_config)
 
     log.info(f"Instantiating model <{cfg.model._target_}>")
-    model: LightningModule = hydra.utils.instantiate(cfg.model)
+    model: LightningModule = hydra.utils.instantiate(cfg.model, _recursive_=False)
 
     log.info("Instantiating loggers...")
     logger: List[Logger] = instantiate_loggers(cfg.get("logger"))
@@ -82,7 +85,7 @@ def evaluate(cfg: DictConfig) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     return metric_dict, object_dict
 
 
-@hydra.main(version_base="1.3", config_path="../configs/TreeHeightUnet_config", config_name="config.yaml")
+@hydra.main(version_base="1.3", config_path="../configs/TreeHeight_DPT", config_name="config.yaml")
 def main(cfg: DictConfig) -> None:
     """Main entry point for evaluation.
 
