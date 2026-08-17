@@ -81,7 +81,7 @@ def inference(cfg: DictConfig) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     trainer.predict(model, datamodule=datamodule, ckpt_path=cfg.ckpt_path)
 
 
-@hydra.main(version_base="1.3", config_path="../configs/TreeHeight_DPT", config_name="config.yaml")
+@hydra.main(version_base="1.3", config_path="../configs/TreeHeight_Unet", config_name="config.yaml")
 def main(cfg: DictConfig) -> None:
     """Main entry point for evaluation.
 

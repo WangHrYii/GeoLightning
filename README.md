@@ -25,7 +25,7 @@ SAR-光学多模态任务所需的数据、模型、训练与大图推理组件�
 | 空间采样 | Random、RandomBatch、Grid 和 PreChipped GeoSampler |
 | Backbone | 仓库原有遥感骨干网络，加上 11 个 TorchVision 源码家族、52 个模型变体 |
 | 统一接口 | `forward_features()`、`out_channels`、`out_strides` 特征协议 |
-| 任务 | 分类、分割、树高回归、多头任务、SAR-光学融合、AutoMAE、特征上采样 |
+| 任务 | 分类、分割、树高回归、多头任务、SAR-光学融合、自监督学习、特征上采样 |
 | 工程能力 | Hydra 配置、Lightning 训练、分块推理、CI、wheel 构建和输出保留策略 |
 
 ## 项目结构
@@ -33,8 +33,6 @@ SAR-光学多模态任务所需的数据、模型、训练与大图推理组件�
 ```text
 GeoLightning/
 ├── configs/
-│   ├── AutoMAE/                  # AutoMAE 预训练
-│   ├── TreeHeight_DPT/           # MINTHE/DPT 树高任务
 │   ├── TreeHeight_Unet/          # 多头 U-Net 树高任务
 │   ├── RSIPAC_25_T1/             # SAR-光学分割
 │   ├── torchgeo/                 # TorchGeo 数据集与 DataModule 示例
@@ -44,11 +42,10 @@ GeoLightning/
 │   │   └── torchgeo/             # 本地 TorchGeo datasets 与 samplers 源码
 │   ├── models/
 │   │   ├── backbones/            # 原有与源码集成 backbone
-│   │   ├── MultiHeadTask/        # 多头分割/高度回归
 │   │   ├── MultiModalSegTask/    # SAR-光学多模态分割
 │   │   ├── SegmentationTask/     # 语义分割
-│   │   ├── RegressionTask/       # 回归组件
-│   │   ├── SelfSupervisedTask/   # AutoMAE 等自监督模型
+│   │   ├── RegressionTask/       # 回归基础组件
+│   │   ├── SelfSupervisedTask/   # 自监督模型
 │   │   └── FeatureUpsampling/    # 特征上采样
 │   ├── train.py                  # 默认训练入口
 │   ├── eval.py                   # 评估入口
@@ -97,8 +94,7 @@ override 指定，常用变量记录在 [.env.example](.env.example) 中：
 PROJECT_ROOT=.
 DATA_ROOT=./data
 CHECKPOINT_ROOT=./ckpts
-TREEHEIGHT_PATCH_ROOT=./data/TreeHeight/DistributionSplitData_Patched
-DEPTH_WEIGHTS=./ckpts/depth_anything_v2_vitb.pth
+TREEHEIGHT_RASTER=./data/TreeHeight/raster_1m_cropped.tif
 ```
 
 `rootutils` 会读取项目根目录的 `.env`。所有 Hydra 参数也可以在命令行覆盖。
@@ -108,7 +104,7 @@ DEPTH_WEIGHTS=./ckpts/depth_anything_v2_vitb.pth
 安装为 editable package 后可以直接使用 CLI：
 
 ```bash
-# 默认使用 configs/TreeHeight_DPT/config.yaml
+# 默认使用 configs/TreeHeight_Unet/config.yaml
 geolightning-train
 
 # 从检查点评估
@@ -130,7 +126,6 @@ geolightning-train \
 其他任务入口：
 
 ```bash
-python src/train_AutoMAE.py
 python src/train_rsipac_mcanet.py
 python src/inference_tiled.py
 ```

@@ -9,8 +9,7 @@ from omegaconf import OmegaConf
 @pytest.mark.parametrize(
     "relative_path",
     [
-        "configs/TreeHeight_DPT/config.yaml",
-        "configs/AutoMAE/config.yaml",
+        "configs/TreeHeight_Unet/config.yaml",
         "configs/RSIPAC_25_T1/MCANet/config.yaml",
         "configs/torchgeo/eurosat_datamodule.yaml",
         "configs/backbones/torchvision_source.yaml",

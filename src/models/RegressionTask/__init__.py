@@ -1,2 +1,3 @@
-from src.models.RegressionTask.dpt import DPTHead
-from src.models.RegressionTask.dpt import DepthAnythingV2
+from src.models.RegressionTask.base import BaseRegressionTask
+
+__all__ = ["BaseRegressionTask"]
